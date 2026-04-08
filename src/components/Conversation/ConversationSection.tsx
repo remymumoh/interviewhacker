@@ -64,8 +64,9 @@ export const ConversationSection: React.FC = () => {
   const durationIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const processingCountRef = useRef(0);
   
-  // Use ref to track recording state for event listener
+  // Use refs to track state for event listener (avoids stale closures in useEffect)
   const isRecordingRef = useRef(false);
+  const currentSpeakerRef = useRef<'interviewer' | 'interviewee'>(currentSpeaker);
   
   const handleTooltipVisibilityChange = (visible: boolean, height: number) => {
     setTooltipHeight(height);
@@ -84,6 +85,10 @@ export const ConversationSection: React.FC = () => {
   }, [isRecording]);
 
   useEffect(() => {
+    currentSpeakerRef.current = currentSpeaker;
+  }, [currentSpeaker]);
+
+  useEffect(() => {
     loadConversation();
     
     const unsubscribeMessageAdded = window.electronAPI.onConversationMessageAdded((message: ConversationMessage) => {
@@ -93,6 +98,7 @@ export const ConversationSection: React.FC = () => {
     
     const unsubscribeSpeakerChanged = window.electronAPI.onSpeakerChanged((speaker: string) => {
       setCurrentSpeaker(speaker as 'interviewer' | 'interviewee');
+      currentSpeakerRef.current = speaker as 'interviewer' | 'interviewee';
     });
 
     const unsubscribeMessageUpdated = window.electronAPI.onConversationMessageUpdated((message: ConversationMessage) => {
@@ -189,14 +195,15 @@ export const ConversationSection: React.FC = () => {
     
     try {
       const audioBlob = await audioRecorderRef.current.stopRecording();
-      const speakerAtStop = currentSpeaker;
+      const speakerAtStop = currentSpeakerRef.current;
       setRecordingDuration(0);
 
-      // Kick off transcription/processing asynchronously so UI stays responsive
-      void processRecording(audioBlob, speakerAtStop);
-
-      // Auto-toggle speaker for the next recording cycle
-      void toggleSpeakerForNextTurn();
+      // Process recording first, then toggle speaker for next turn
+      // We must await processing so AI suggestions are fetched before speaker state changes
+      void (async () => {
+        await processRecording(audioBlob, speakerAtStop);
+        await toggleSpeakerForNextTurn();
+      })();
     } catch (error: any) {
       console.error('Failed to stop recording:', error);
       alert(error.message || 'Failed to stop recording');
@@ -261,6 +268,7 @@ export const ConversationSection: React.FC = () => {
       const result = await window.electronAPI.toggleSpeaker();
       if (result.success) {
         setCurrentSpeaker(result.speaker);
+        currentSpeakerRef.current = result.speaker;
         // Don't clear suggestions - user needs to see them when preparing their answer!
       }
     } catch (error) {
@@ -273,6 +281,7 @@ export const ConversationSection: React.FC = () => {
       const result = await window.electronAPI.toggleSpeaker();
       if (result.success) {
         setCurrentSpeaker(result.speaker);
+        currentSpeakerRef.current = result.speaker;
       }
     } catch (error) {
       console.error('Failed to auto-toggle speaker:', error);

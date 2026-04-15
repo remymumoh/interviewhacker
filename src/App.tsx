@@ -23,6 +23,9 @@ const SettingsDialog = lazy(() =>
   }))
 )
 
+// Check if this is a settings-only window
+const isSettingsWindow = window.location.hash === "#settings";
+
 // Create a React Query client
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -146,6 +149,7 @@ function App() {
   useEffect(() => {
     const unsubscribeSettings = window.electronAPI.onShowSettings(() => {
       console.log("Show settings dialog requested");
+      window.electronAPI.settingsFocusMode(true);
       setIsSettingsOpen(true);
     });
     
@@ -219,11 +223,15 @@ function App() {
   // API Key dialog management
   const handleOpenSettings = useCallback(() => {
     console.log('Opening settings dialog');
+    window.electronAPI.settingsFocusMode(true);
     setIsSettingsOpen(true);
   }, []);
-  
+
   const handleCloseSettings = useCallback((open: boolean) => {
     console.log('Settings dialog state changed:', open);
+    if (!open) {
+      window.electronAPI.settingsFocusMode(false);
+    }
     setIsSettingsOpen(open);
   }, []);
 
@@ -242,6 +250,40 @@ function App() {
       showToast("Error", "Failed to save API key", "error")
     }
   }, [showToast])
+
+  // If this is a settings-only window, just render settings
+  if (isSettingsWindow) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <ToastProvider>
+          <ToastContext.Provider value={{ showToast }}>
+            <div className="bg-black p-4 min-h-screen">
+              <Suspense fallback={null}>
+                <SettingsDialog
+                  open={true}
+                  onOpenChange={(open) => {
+                    if (!open) window.close();
+                  }}
+                />
+              </Suspense>
+            </div>
+            <Toast
+              open={toastState.open}
+              onOpenChange={(open) =>
+                setToastState((prev) => ({ ...prev, open }))
+              }
+              variant={toastState.variant}
+              duration={1500}
+            >
+              <ToastTitle>{toastState.title}</ToastTitle>
+              <ToastDescription>{toastState.description}</ToastDescription>
+            </Toast>
+            <ToastViewport />
+          </ToastContext.Provider>
+        </ToastProvider>
+      </QueryClientProvider>
+    );
+  }
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -279,16 +321,6 @@ function App() {
             )}
             <UpdateNotification />
           </div>
-          
-          {/* Settings Dialog - Lazy loaded */}
-          {isSettingsOpen && (
-            <Suspense fallback={null}>
-              <SettingsDialog 
-                open={isSettingsOpen} 
-                onOpenChange={handleCloseSettings} 
-              />
-            </Suspense>
-          )}
           
           <Toast
             open={toastState.open}

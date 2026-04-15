@@ -1,6 +1,7 @@
 // ipcHandlers.ts
 
-import { ipcMain, shell, dialog } from "electron"
+import { ipcMain, shell, dialog, app, BrowserWindow } from "electron"
+import * as path from "path"
 import { randomBytes } from "crypto"
 import { IIpcHandlerDeps } from "./main"
 import { configHelper } from "./ConfigHelper"
@@ -200,14 +201,70 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
     }
   })
 
-  // Settings portal handler
+  // Settings window - opens in a separate normal window (panel windows can't hold focus)
+  let settingsWindow: BrowserWindow | null = null;
+
   ipcMain.handle("open-settings-portal", () => {
-    const mainWindow = deps.getMainWindow();
-    if (mainWindow) {
-      mainWindow.webContents.send("show-settings-dialog");
+    // If settings window already exists, focus it
+    if (settingsWindow && !settingsWindow.isDestroyed()) {
+      settingsWindow.focus();
       return { success: true };
     }
-    return { success: false, error: "Main window not available" };
+
+    const mainWindow = deps.getMainWindow();
+
+    const isDev = process.env.NODE_ENV === "development";
+    const preloadPath = isDev
+      ? path.join(__dirname, "../dist-electron/preload.js")
+      : path.join(__dirname, "preload.js");
+
+    // Hide main window while settings is open so it doesn't cover settings
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.setAlwaysOnTop(false);
+      mainWindow.hide();
+    }
+
+    settingsWindow = new BrowserWindow({
+      width: 500,
+      height: 700,
+      minWidth: 450,
+      minHeight: 500,
+      frame: true,
+      transparent: false,
+      backgroundColor: "#000000",
+      titleBarStyle: "hiddenInset",
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        preload: preloadPath,
+      },
+    });
+
+    // Load the same app URL with a hash to indicate settings mode
+    const mainUrl = mainWindow?.webContents.getURL();
+    if (mainUrl) {
+      const url = new URL(mainUrl);
+      url.hash = "settings";
+      settingsWindow.loadURL(url.toString());
+    } else if (isDev) {
+      settingsWindow.loadURL("http://localhost:5173/#settings");
+    }
+
+    settingsWindow.on("closed", () => {
+      settingsWindow = null;
+      // Restore and show main window
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.setAlwaysOnTop(true, "screen-saver", 1);
+        mainWindow.show();
+      }
+    });
+
+    return { success: true };
+  })
+
+  // Keep settings-focus-mode as no-op for backwards compat
+  ipcMain.handle("settings-focus-mode", () => {
+    return { success: true };
   })
 
   // Window management handlers

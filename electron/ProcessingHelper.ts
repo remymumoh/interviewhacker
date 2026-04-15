@@ -11,6 +11,8 @@ import Anthropic from '@anthropic-ai/sdk';
 import {
   APIProvider,
   DEFAULT_MODELS,
+  PROVIDER_BASE_URLS,
+  PROVIDER_IS_OPENAI_COMPATIBLE,
 } from "../shared/aiModels";
 
 // Interface for Gemini API requests
@@ -58,7 +60,7 @@ export class ProcessingHelper {
   private currentProcessingAbortController: AbortController | null = null
   private currentExtraProcessingAbortController: AbortController | null = null
   
-  private formatProviderError(provider: "openai" | "gemini" | "anthropic", error: any, context: string): string {
+  private formatProviderError(provider: APIProvider, error: any, context: string): string {
     const status =
       typeof error?.status === "number"
         ? error.status
@@ -100,58 +102,44 @@ export class ProcessingHelper {
   }
   
   /**
-   * Initialize or reinitialize the AI client with current config
+   * Initialize or reinitialize the AI client with current config.
+   * OpenAI-compatible providers (openai, deepseek, groq, openrouter) all use the
+   * OpenAI SDK with a different baseURL. Gemini uses REST. Anthropic uses its own SDK.
    */
   private initializeAIClient(): void {
     try {
       const config = configHelper.loadConfig();
-      
-      if (config.apiProvider === "openai") {
-        if (config.apiKey) {
-          this.openaiClient = new OpenAI({ 
-            apiKey: config.apiKey,
-            timeout: 60000, // 60 second timeout
-            maxRetries: 2   // Retry up to 2 times
-          });
-          this.geminiApiKey = null;
-          this.anthropicClient = null;
-          console.log("OpenAI client initialized successfully");
-        } else {
-          this.openaiClient = null;
-          this.geminiApiKey = null;
-          this.anthropicClient = null;
-          console.warn("No API key available, OpenAI client not initialized");
-        }
-      } else if (config.apiProvider === "gemini"){
-        // Gemini client initialization
-        this.openaiClient = null;
-        this.anthropicClient = null;
-        if (config.apiKey) {
-          this.geminiApiKey = config.apiKey;
-          console.log("Gemini API key set successfully");
-        } else {
-          this.openaiClient = null;
-          this.geminiApiKey = null;
-          this.anthropicClient = null;
-          console.warn("No API key available, Gemini client not initialized");
-        }
+
+      // Reset all clients
+      this.openaiClient = null;
+      this.geminiApiKey = null;
+      this.anthropicClient = null;
+
+      if (!config.apiKey) {
+        console.warn(`No API key available, ${config.apiProvider} client not initialized`);
+        return;
+      }
+
+      if (PROVIDER_IS_OPENAI_COMPATIBLE[config.apiProvider]) {
+        // OpenAI-compatible providers: openai, deepseek, groq, openrouter
+        const baseURL = PROVIDER_BASE_URLS[config.apiProvider];
+        this.openaiClient = new OpenAI({
+          apiKey: config.apiKey,
+          baseURL,
+          timeout: 60000,
+          maxRetries: 2,
+        });
+        console.log(`${config.apiProvider} client initialized (OpenAI-compatible, baseURL: ${baseURL})`);
+      } else if (config.apiProvider === "gemini") {
+        this.geminiApiKey = config.apiKey;
+        console.log("Gemini API key set successfully");
       } else if (config.apiProvider === "anthropic") {
-        // Reset other clients
-        this.openaiClient = null;
-        this.geminiApiKey = null;
-        if (config.apiKey) {
-          this.anthropicClient = new Anthropic({
-            apiKey: config.apiKey,
-            timeout: 60000,
-            maxRetries: 2
-          });
-          console.log("Anthropic client initialized successfully");
-        } else {
-          this.openaiClient = null;
-          this.geminiApiKey = null;
-          this.anthropicClient = null;
-          console.warn("No API key available, Anthropic client not initialized");
-        }
+        this.anthropicClient = new Anthropic({
+          apiKey: config.apiKey,
+          timeout: 60000,
+          maxRetries: 2,
+        });
+        console.log("Anthropic client initialized successfully");
       }
     } catch (error) {
       console.error("Failed to initialize AI client:", error);
@@ -235,35 +223,26 @@ export class ProcessingHelper {
     const config = configHelper.loadConfig();
     
     // First verify we have a valid AI client
-    if (config.apiProvider === "openai" && !this.openaiClient) {
+    const isOpenAICompat = PROVIDER_IS_OPENAI_COMPATIBLE[config.apiProvider];
+    if (isOpenAICompat && !this.openaiClient) {
       this.initializeAIClient();
-      
       if (!this.openaiClient) {
-        console.error("OpenAI client not initialized");
-        mainWindow.webContents.send(
-          this.deps.PROCESSING_EVENTS.API_KEY_INVALID
-        );
+        console.error(`${config.apiProvider} client not initialized`);
+        mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.API_KEY_INVALID);
         return;
       }
     } else if (config.apiProvider === "gemini" && !this.geminiApiKey) {
       this.initializeAIClient();
-      
       if (!this.geminiApiKey) {
         console.error("Gemini API key not initialized");
-        mainWindow.webContents.send(
-          this.deps.PROCESSING_EVENTS.API_KEY_INVALID
-        );
+        mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.API_KEY_INVALID);
         return;
       }
     } else if (config.apiProvider === "anthropic" && !this.anthropicClient) {
-      // Add check for Anthropic client
       this.initializeAIClient();
-      
       if (!this.anthropicClient) {
         console.error("Anthropic client not initialized");
-        mainWindow.webContents.send(
-          this.deps.PROCESSING_EVENTS.API_KEY_INVALID
-        );
+        mainWindow.webContents.send(this.deps.PROCESSING_EVENTS.API_KEY_INVALID);
         return;
       }
     }
@@ -492,41 +471,39 @@ export class ProcessingHelper {
 
       let problemInfo;
       
-      if (config.apiProvider === "openai") {
-        // Verify OpenAI client
+      if (PROVIDER_IS_OPENAI_COMPATIBLE[config.apiProvider]) {
+        // OpenAI-compatible providers: openai, deepseek, groq, openrouter
         if (!this.openaiClient) {
-          this.initializeAIClient(); // Try to reinitialize
-          
+          this.initializeAIClient();
           if (!this.openaiClient) {
             return {
               success: false,
-              error: "OpenAI API key not configured or invalid. Please check your settings."
+              error: `${config.apiProvider} API key not configured or invalid. Please check your settings.`
             };
           }
         }
 
         // Get conversation context if available
         const conversationContext = this.getConversationContext();
-        
-        // Use OpenAI for processing
+
         const systemPrompt = conversationContext
           ? `You are a coding challenge interpreter. Analyze the screenshot of the coding problem and extract all relevant information. Consider the conversation context provided. Return the information in JSON format with these fields: problem_statement, constraints, example_input, example_output. Just return the structured JSON without any other text.`
           : "You are a coding challenge interpreter. Analyze the screenshot of the coding problem and extract all relevant information. Return the information in JSON format with these fields: problem_statement, constraints, example_input, example_output. Just return the structured JSON without any other text.";
-        
+
         const userPrompt = conversationContext
           ? `Extract the coding problem details from these screenshots. Consider the following conversation context:\n\n${conversationContext}\n\nReturn in JSON format. Preferred coding language we gonna use for this problem is ${language}.`
           : `Extract the coding problem details from these screenshots. Return in JSON format. Preferred coding language we gonna use for this problem is ${language}.`;
-        
+
         const messages = [
           {
-            role: "system" as const, 
+            role: "system" as const,
             content: systemPrompt
           },
           {
             role: "user" as const,
             content: [
               {
-                type: "text" as const, 
+                type: "text" as const,
                 text: userPrompt
               },
               ...imageDataList.map(data => ({
@@ -812,30 +789,29 @@ ${problemInfo.example_output || "No example output provided."}
 LANGUAGE: ${language}
 
 I need the response in the following format:
-1. Code: A clean, optimized implementation in ${language}
+1. Code: A clean, optimized implementation in ${language}. Include detailed inline comments explaining each step, key decisions, and why the approach works. Every function, loop, and conditional should have a comment.
 2. Your Thoughts: A list of key insights and reasoning behind your approach
 3. Time complexity: O(X) with a detailed explanation (at least 2 sentences)
 4. Space complexity: O(X) with a detailed explanation (at least 2 sentences)
 
 For complexity explanations, please be thorough. For example: "Time complexity: O(n) because we iterate through the array only once. This is optimal as we need to examine each element at least once to find the solution." or "Space complexity: O(n) because in the worst case, we store all elements in the hashmap. The additional space scales linearly with the input size."
 
-Your solution should be efficient, well-commented, and handle edge cases.
+Your solution should be efficient, thoroughly commented with explanations, and handle edge cases.
 `;
 
       let responseContent;
       
-      if (config.apiProvider === "openai") {
-        // OpenAI processing
+      if (PROVIDER_IS_OPENAI_COMPATIBLE[config.apiProvider]) {
+        // OpenAI-compatible providers: openai, deepseek, groq, openrouter
         if (!this.openaiClient) {
           return {
             success: false,
-            error: "OpenAI API key not configured. Please check your settings."
+            error: `${config.apiProvider} API key not configured. Please check your settings.`
           };
         }
-        
-        // Send to OpenAI API
+
         const solutionResponse = await this.openaiClient.chat.completions.create({
-          model: config.solutionModel || "gpt-4o",
+          model: config.solutionModel || DEFAULT_MODELS[config.apiProvider].solutionModel,
           messages: [
             { role: "system", content: "You are an expert coding interview assistant. Provide clear, optimal solutions with detailed explanations." },
             { role: "user", content: promptText }
@@ -1069,17 +1045,18 @@ Your solution should be efficient, well-commented, and handle edge cases.
       
       let debugContent;
       
-      if (config.apiProvider === "openai") {
+      if (PROVIDER_IS_OPENAI_COMPATIBLE[config.apiProvider]) {
+        // OpenAI-compatible providers: openai, deepseek, groq, openrouter
         if (!this.openaiClient) {
           return {
             success: false,
-            error: "OpenAI API key not configured. Please check your settings."
+            error: `${config.apiProvider} API key not configured. Please check your settings.`
           };
         }
-        
+
         const messages = [
           {
-            role: "system" as const, 
+            role: "system" as const,
             content: `You are a coding interview assistant helping debug and improve solutions. Analyze these screenshots which include either error messages, incorrect outputs, or test cases, and provide detailed debugging help.
 
 Your response MUST follow this exact structure with these section headers (use ### for headers):
@@ -1104,12 +1081,12 @@ If you include code examples, use proper markdown code blocks with language spec
             role: "user" as const,
             content: [
               {
-                type: "text" as const, 
+                type: "text" as const,
                 text: `I'm solving this coding problem: "${problemInfo.problem_statement}" in ${language}. I need help with debugging or improving my solution. Here are screenshots of my code, the errors or test cases. Please provide a detailed analysis with:
 1. What issues you found in my code
 2. Specific improvements and corrections
 3. Any optimizations that would make the solution better
-4. A clear explanation of the changes needed` 
+4. A clear explanation of the changes needed`
               },
               ...imageDataList.map(data => ({
                 type: "image_url" as const,
@@ -1127,7 +1104,7 @@ If you include code examples, use proper markdown code blocks with language spec
         }
 
         const debugResponse = await this.openaiClient.chat.completions.create({
-          model: config.debuggingModel || "gpt-4o",
+          model: config.debuggingModel || DEFAULT_MODELS[config.apiProvider].debuggingModel,
           messages: messages,
           max_tokens: 4000,
           temperature: 0.2

@@ -273,6 +273,16 @@ const Solutions: React.FC<SolutionsProps> = ({
     }
     updateDimensions()
 
+    // Keyboard scroll handlers (Cmd+J / Cmd+K)
+    const handleScrollDown = () => {
+      window.scrollBy({ top: 150, behavior: 'smooth' });
+    };
+    const handleScrollUp = () => {
+      window.scrollBy({ top: -150, behavior: 'smooth' });
+    };
+    window.addEventListener('content-scroll-down', handleScrollDown);
+    window.addEventListener('content-scroll-up', handleScrollUp);
+
     // Set up event listeners
     const cleanupFunctions = [
       window.electronAPI.onScreenshotTaken(async () => {
@@ -360,6 +370,20 @@ const Solutions: React.FC<SolutionsProps> = ({
         setTimeComplexityData(solutionData.time_complexity || null)
         setSpaceComplexityData(solutionData.space_complexity || null)
 
+        // Add solution summary to conversation so it's part of the flow
+        const thoughtsSummary = solutionData.thoughts?.length
+          ? solutionData.thoughts.join('\n')
+          : '';
+        const solutionSummary = [
+          thoughtsSummary ? `Approach:\n${thoughtsSummary}` : '',
+          solutionData.code ? `\nSolution:\n${solutionData.code}` : '',
+          solutionData.time_complexity ? `\nTime: ${solutionData.time_complexity}` : '',
+          solutionData.space_complexity ? `Space: ${solutionData.space_complexity}` : '',
+        ].filter(Boolean).join('\n');
+        if (solutionSummary) {
+          window.electronAPI.addConversationMessage(solutionSummary, 'interviewee' as any);
+        }
+
         // Fetch latest screenshots when solution is successful
         const fetchScreenshots = async () => {
           try {
@@ -414,6 +438,8 @@ const Solutions: React.FC<SolutionsProps> = ({
     return () => {
       resizeObserver.disconnect()
       cleanupFunctions.forEach((cleanup) => cleanup())
+      window.removeEventListener('content-scroll-down', handleScrollDown)
+      window.removeEventListener('content-scroll-up', handleScrollUp)
     }
   }, [isTooltipVisible, tooltipHeight])
 
@@ -493,21 +519,6 @@ const Solutions: React.FC<SolutionsProps> = ({
       ) : (
         <div ref={contentRef} className="relative">
           <div className="space-y-3 px-4 py-3">
-          {/* Conditionally render the screenshot queue if solutionData is available */}
-          {solutionData && (
-            <div className="bg-transparent w-fit">
-              <div className="pb-3">
-                <div className="space-y-3 w-fit">
-                  <ScreenshotQueue
-                    isLoading={debugProcessing}
-                    screenshots={extraScreenshots}
-                    onDeleteScreenshot={handleDeleteExtraScreenshot}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
           {/* Navbar of commands with the SolutionsHelper */}
           <SolutionCommands
             onTooltipVisibilityChange={handleTooltipVisibilityChange}
@@ -518,15 +529,29 @@ const Solutions: React.FC<SolutionsProps> = ({
             setLanguage={setLanguage}
           />
 
-          {/* Conversation Section */}
-          <div className="bg-black/60 rounded-md p-4" style={{ height: '350px', display: 'flex', flexDirection: 'column' }}>
-            <ConversationSection />
+          {/* Conversation section */}
+          <div className="w-full text-sm text-gray-100 bg-black/60 rounded-md overflow-hidden" style={{ maxHeight: '250px' }}>
+            <div className="p-3" style={{ height: '250px', display: 'flex', flexDirection: 'column' }}>
+              <ConversationSection />
+            </div>
           </div>
 
-          {/* Main Content - Modified width constraints */}
-          <div className="w-full text-sm text-black bg-black/60 rounded-md">
+          {/* Screenshots */}
+          {solutionData && extraScreenshots.length > 0 && (
+            <div className="w-full bg-black/60 rounded-md p-3">
+              <ScreenshotQueue
+                isLoading={debugProcessing}
+                screenshots={extraScreenshots}
+                onDeleteScreenshot={handleDeleteExtraScreenshot}
+              />
+            </div>
+          )}
+
+          {/* Solution content */}
+          <div className="w-full text-sm text-gray-100 bg-black/60 rounded-md">
             <div className="rounded-lg overflow-hidden">
               <div className="px-4 py-3 space-y-4 max-w-full">
+
                 {!solutionData && (
                   <>
                     <ContentSection
@@ -547,7 +572,7 @@ const Solutions: React.FC<SolutionsProps> = ({
                 {solutionData && (
                   <>
                     <ContentSection
-                      title={`My Thoughts (${COMMAND_KEY} + Arrow keys to scroll)`}
+                      title={`My Thoughts (${COMMAND_KEY} + J/K to scroll)`}
                       content={
                         thoughtsData && (
                           <div className="space-y-3">

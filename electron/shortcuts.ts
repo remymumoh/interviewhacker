@@ -124,6 +124,25 @@ export class ShortcutsHelper {
       }
     });
 
+    // Content scroll (Ctrl/Cmd+J to scroll down, Ctrl/Cmd+K to scroll up)
+    globalShortcut.register("CommandOrControl+J", async () => {
+      const mainWindow = this.deps.getMainWindow();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        await mainWindow.webContents.executeJavaScript(`
+          window.dispatchEvent(new CustomEvent('content-scroll-down'));
+        `);
+      }
+    });
+
+    globalShortcut.register("CommandOrControl+K", async () => {
+      const mainWindow = this.deps.getMainWindow();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        await mainWindow.webContents.executeJavaScript(`
+          window.dispatchEvent(new CustomEvent('content-scroll-up'));
+        `);
+      }
+    });
+
     // Speaker toggle (Ctrl/Cmd+Shift+M)
     globalShortcut.register("CommandOrControl+Shift+M", async () => {
       const mainWindow = this.deps.getMainWindow();

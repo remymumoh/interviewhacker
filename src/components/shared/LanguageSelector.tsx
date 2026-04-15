@@ -42,15 +42,31 @@ export const LanguageSelector: React.FC<LanguageSelectorProps> = ({
         >
           <option value="python" className="bg-black text-white">Python</option>
           <option value="javascript" className="bg-black text-white">JavaScript</option>
+          <option value="typescript" className="bg-black text-white">TypeScript</option>
           <option value="java" className="bg-black text-white">Java</option>
-          <option value="golang" className="bg-black text-white">Go</option>
           <option value="cpp" className="bg-black text-white">C++</option>
+          <option value="c" className="bg-black text-white">C</option>
+          <option value="csharp" className="bg-black text-white">C#</option>
+          <option value="golang" className="bg-black text-white">Go</option>
+          <option value="rust" className="bg-black text-white">Rust</option>
           <option value="swift" className="bg-black text-white">Swift</option>
           <option value="kotlin" className="bg-black text-white">Kotlin</option>
+          <option value="scala" className="bg-black text-white">Scala</option>
           <option value="ruby" className="bg-black text-white">Ruby</option>
-          <option value="sql" className="bg-black text-white">SQL</option>
+          <option value="php" className="bg-black text-white">PHP</option>
+          <option value="dart" className="bg-black text-white">Dart</option>
           <option value="r" className="bg-black text-white">R</option>
-          <option value="csharp" className="bg-black text-white">C#</option>
+          <option value="elixir" className="bg-black text-white">Elixir</option>
+          <option value="haskell" className="bg-black text-white">Haskell</option>
+          <option value="ocaml" className="bg-black text-white">OCaml</option>
+          <option value="clojure" className="bg-black text-white">Clojure</option>
+          <option value="lua" className="bg-black text-white">Lua</option>
+          <option value="julia" className="bg-black text-white">Julia</option>
+          <option value="erlang" className="bg-black text-white">Erlang</option>
+          <option value="fsharp" className="bg-black text-white">F#</option>
+          <option value="nim" className="bg-black text-white">Nim</option>
+          <option value="zig" className="bg-black text-white">Zig</option>
+          <option value="sql" className="bg-black text-white">SQL</option>
         </select>
       </div>
     </div>

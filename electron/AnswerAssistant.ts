@@ -11,6 +11,8 @@ import { IConversationManager } from './ConversationManager';
 import {
   APIProvider,
   DEFAULT_ANSWER_MODELS,
+  PROVIDER_BASE_URLS,
+  PROVIDER_IS_OPENAI_COMPATIBLE,
 } from "../shared/aiModels";
 
 // Interface for Gemini API requests
@@ -50,7 +52,7 @@ export class AnswerAssistant implements IAnswerAssistant {
   private geminiApiKey: string | null = null;
   private anthropic: Anthropic | null = null;
 
-  private formatProviderError(provider: "openai" | "gemini" | "anthropic", error: any, context: string): string {
+  private formatProviderError(provider: APIProvider, error: any, context: string): string {
     const status =
       typeof error?.status === "number"
         ? error.status
@@ -72,22 +74,24 @@ export class AnswerAssistant implements IAnswerAssistant {
   }
 
   /**
-   * Initializes AI clients based on API provider from config
+   * Initializes AI clients based on API provider from config.
+   * OpenAI-compatible providers (openai, deepseek, groq, openrouter) share the OpenAI client.
    */
   private initializeAIClients(): void {
     const config = configHelper.loadConfig();
-    
+
     // Reset all clients
     this.openai = null;
     this.geminiApiKey = null;
     this.anthropic = null;
-    
+
     if (!config.apiKey || config.apiKey.trim().length === 0) {
       return;
     }
-    
-    if (config.apiProvider === "openai") {
-      this.openai = new OpenAI({ apiKey: config.apiKey });
+
+    if (PROVIDER_IS_OPENAI_COMPATIBLE[config.apiProvider]) {
+      const baseURL = PROVIDER_BASE_URLS[config.apiProvider];
+      this.openai = new OpenAI({ apiKey: config.apiKey, baseURL });
     } else if (config.apiProvider === "gemini") {
       this.geminiApiKey = config.apiKey;
     } else if (config.apiProvider === "anthropic") {
@@ -142,7 +146,7 @@ export class AnswerAssistant implements IAnswerAssistant {
       // Get the configured answer model, fallback to default if not set
       const answerModel = config.answerModel || DEFAULT_ANSWER_MODELS[config.apiProvider];
 
-      if (config.apiProvider === "openai" && this.openai) {
+      if (PROVIDER_IS_OPENAI_COMPATIBLE[config.apiProvider] && this.openai) {
         const response = await this.openai.chat.completions.create({
           model: answerModel,
           messages: [

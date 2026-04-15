@@ -51,6 +51,7 @@ export interface ElectronAPI {
   onCreditsUpdated: (callback: (credits: number) => void) => () => void
   onOutOfCredits: (callback: () => void) => () => void
   openSettingsPortal: () => Promise<void>
+  settingsFocusMode: (enable: boolean) => Promise<{ success: boolean }>
   getPlatform: () => string
   
   // New methods for OpenAI integration

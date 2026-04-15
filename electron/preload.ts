@@ -31,6 +31,7 @@ const electronAPI = {
     return ipcRenderer.invoke("open-subscription-portal", authData)
   },
   openSettingsPortal: () => ipcRenderer.invoke("open-settings-portal"),
+  settingsFocusMode: (enable: boolean) => ipcRenderer.invoke("settings-focus-mode", enable),
   updateContentDimensions: (dimensions: { width: number; height: number }) =>
     ipcRenderer.invoke("update-content-dimensions", dimensions),
   clearStore: () => ipcRenderer.invoke("clear-store"),

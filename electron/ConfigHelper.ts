@@ -8,6 +8,7 @@ import {
   APIProvider,
   DEFAULT_PROVIDER,
   DEFAULT_MODELS,
+  PROVIDER_BASE_URLS,
   sanitizeModelSelection,
 } from "../shared/aiModels";
 
@@ -89,7 +90,8 @@ export class ConfigHelper extends EventEmitter {
         const config = JSON.parse(configData);
         
         // Ensure apiProvider is a valid value
-        if (config.apiProvider !== "openai" && config.apiProvider !== "gemini"  && config.apiProvider !== "anthropic") {
+        const validProviders: APIProvider[] = ["openai", "gemini", "anthropic", "deepseek", "groq", "openrouter"];
+        if (!validProviders.includes(config.apiProvider)) {
           config.apiProvider = DEFAULT_PROVIDER; // Default to shared provider if invalid
         }
         
@@ -131,12 +133,13 @@ export class ConfigHelper extends EventEmitter {
             const allowedGeminiSpeechModels = [
               "gemini-1.5-flash",
               "gemini-1.5-pro",
-              "gemini-3-flash-preview",
-              "gemini-3-pro-preview",
-              "gemini-2.0-flash-exp"
+              "gemini-2.0-flash",
+              "gemini-2.0-flash-lite",
+              "gemini-2.5-flash-preview-04-17",
+              "gemini-2.5-pro-preview-05-06",
             ];
             if (!allowedGeminiSpeechModels.includes(config.speechRecognitionModel)) {
-              config.speechRecognitionModel = DEFAULT_MODELS.gemini.speechRecognitionModel || "gemini-3-flash-preview";
+              config.speechRecognitionModel = DEFAULT_MODELS.gemini.speechRecognitionModel || "gemini-2.0-flash";
             }
           }
         } else if (!config.speechRecognitionModel) {
@@ -184,20 +187,31 @@ export class ConfigHelper extends EventEmitter {
       let provider: APIProvider = updates.apiProvider || currentConfig.apiProvider;
       
       // Auto-detect provider based on API key format if a new key is provided
+      // Only auto-detect if provider was NOT explicitly set by the user
       if (updates.apiKey && !updates.apiProvider) {
-        // If API key starts with "sk-", it's likely an OpenAI key
-        if (updates.apiKey.trim().startsWith('sk-')) {
-          provider = "openai";
-          console.log("Auto-detected OpenAI API key format");
-        } else if (updates.apiKey.trim().startsWith('sk-ant-')) {
+        const key = updates.apiKey.trim();
+        if (key.startsWith('sk-ant-')) {
           provider = "anthropic";
           console.log("Auto-detected Anthropic API key format");
+        } else if (key.startsWith('sk-or-')) {
+          provider = "openrouter";
+          console.log("Auto-detected OpenRouter API key format");
+        } else if (key.startsWith('gsk_')) {
+          provider = "groq";
+          console.log("Auto-detected Groq API key format");
+        } else if (key.startsWith('sk-')) {
+          // Could be OpenAI or DeepSeek — keep current provider if it's one of those
+          if (currentConfig.apiProvider === "deepseek") {
+            provider = "deepseek";
+          } else {
+            provider = "openai";
+          }
+          console.log(`Auto-detected ${provider} API key format`);
         } else {
           provider = "gemini";
           console.log("Using Gemini API key format (default)");
         }
-        
-        // Update the provider in the updates object
+
         updates.apiProvider = provider;
       }
       
@@ -220,20 +234,21 @@ export class ConfigHelper extends EventEmitter {
           console.warn(`Invalid speech recognition model: ${updates.speechRecognitionModel}. Only whisper-1 is supported for OpenAI.`);
           updates.speechRecognitionModel = "whisper-1";
         } else if (provider === "gemini") {
-          // Validate Gemini models that support audio understanding
           const allowedGeminiSpeechModels = [
             "gemini-1.5-flash",
             "gemini-1.5-pro",
-            "gemini-3-flash-preview",
-            "gemini-3-pro-preview",
-            "gemini-2.0-flash-exp"
+            "gemini-2.0-flash",
+            "gemini-2.0-flash-lite",
+            "gemini-2.5-flash-preview-04-17",
+            "gemini-2.5-pro-preview-05-06",
           ];
           if (!allowedGeminiSpeechModels.includes(updates.speechRecognitionModel)) {
-            const defaultModel = DEFAULT_MODELS[provider].speechRecognitionModel || "gemini-3-flash-preview";
+            const defaultModel = DEFAULT_MODELS[provider].speechRecognitionModel || "gemini-2.0-flash";
             console.warn(`Invalid Gemini speech recognition model: ${updates.speechRecognitionModel}. Using default: ${defaultModel}`);
             updates.speechRecognitionModel = defaultModel;
           }
         }
+        // Other providers (deepseek, groq, openrouter) don't have built-in speech recognition
       }
       
       // Sanitize model selections in the updates
@@ -297,32 +312,34 @@ export class ConfigHelper extends EventEmitter {
   /**
    * Validate the API key format
    */
-  public isValidApiKeyFormat(apiKey: string, provider?: "openai" | "gemini" | "anthropic" ): boolean {
+  public isValidApiKeyFormat(apiKey: string, provider?: APIProvider): boolean {
+    const key = apiKey.trim();
+
     // If provider is not specified, attempt to auto-detect
     if (!provider) {
-      if (apiKey.trim().startsWith('sk-')) {
-        if (apiKey.trim().startsWith('sk-ant-')) {
-          provider = "anthropic";
-        } else {
-          provider = "openai";
-        }
-      } else {
-        provider = "gemini";
-      }
+      if (key.startsWith('sk-ant-')) provider = "anthropic";
+      else if (key.startsWith('sk-or-')) provider = "openrouter";
+      else if (key.startsWith('gsk_')) provider = "groq";
+      else if (key.startsWith('sk-')) provider = "openai";
+      else provider = "gemini";
     }
-    
-    if (provider === "openai") {
-      // Basic format validation for OpenAI API keys
-      return /^sk-[a-zA-Z0-9]{32,}$/.test(apiKey.trim());
-    } else if (provider === "gemini") {
-      // Basic format validation for Gemini API keys (usually alphanumeric with no specific prefix)
-      return apiKey.trim().length >= 10; // Assuming Gemini keys are at least 10 chars
-    } else if (provider === "anthropic") {
-      // Basic format validation for Anthropic API keys
-      return /^sk-ant-[a-zA-Z0-9]{32,}$/.test(apiKey.trim());
+
+    switch (provider) {
+      case "openai":
+        return /^sk-[a-zA-Z0-9_-]{32,}$/.test(key);
+      case "anthropic":
+        return /^sk-ant-[a-zA-Z0-9_-]{32,}$/.test(key);
+      case "groq":
+        return /^gsk_[a-zA-Z0-9]{32,}$/.test(key);
+      case "openrouter":
+        return /^sk-or-[a-zA-Z0-9_-]{20,}$/.test(key);
+      case "deepseek":
+        return /^sk-[a-zA-Z0-9]{32,}$/.test(key);
+      case "gemini":
+        return key.length >= 10;
+      default:
+        return key.length >= 10;
     }
-    
-    return false;
   }
   
   /**
@@ -360,32 +377,32 @@ export class ConfigHelper extends EventEmitter {
   /**
    * Test API key with the selected provider
    */
-  public async testApiKey(apiKey: string, provider?: "openai" | "gemini" | "anthropic"): Promise<{valid: boolean, error?: string}> {
+  public async testApiKey(apiKey: string, provider?: APIProvider): Promise<{valid: boolean, error?: string}> {
     // Auto-detect provider based on key format if not specified
     if (!provider) {
-      if (apiKey.trim().startsWith('sk-')) {
-        if (apiKey.trim().startsWith('sk-ant-')) {
-          provider = "anthropic";
-          console.log("Auto-detected Anthropic API key format for testing");
-        } else {
-          provider = "openai";
-          console.log("Auto-detected OpenAI API key format for testing");
-        }
-      } else {
-        provider = "gemini";
-        console.log("Using Gemini API key format for testing (default)");
-      }
+      const key = apiKey.trim();
+      if (key.startsWith('sk-ant-')) provider = "anthropic";
+      else if (key.startsWith('sk-or-')) provider = "openrouter";
+      else if (key.startsWith('gsk_')) provider = "groq";
+      else if (key.startsWith('sk-')) provider = "openai";
+      else provider = "gemini";
+      console.log(`Auto-detected ${provider} API key format for testing`);
     }
-    
-    if (provider === "openai") {
-      return this.testOpenAIKey(apiKey);
-    } else if (provider === "gemini") {
-      return this.testGeminiKey(apiKey);
-    } else if (provider === "anthropic") {
-      return this.testAnthropicKey(apiKey);
+
+    switch (provider) {
+      case "openai":
+        return this.testOpenAIKey(apiKey);
+      case "gemini":
+        return this.testGeminiKey(apiKey);
+      case "anthropic":
+        return this.testAnthropicKey(apiKey);
+      case "deepseek":
+      case "groq":
+      case "openrouter":
+        return this.testOpenAICompatibleKey(apiKey, provider);
+      default:
+        return { valid: false, error: "Unknown API provider" };
     }
-    
-    return { valid: false, error: "Unknown API provider" };
   }
   
   /**
@@ -438,6 +455,31 @@ export class ConfigHelper extends EventEmitter {
         errorMessage = `Error: ${error.message}`;
       }
       
+      return { valid: false, error: errorMessage };
+    }
+  }
+
+  /**
+   * Test OpenAI-compatible API key (DeepSeek, Groq, OpenRouter)
+   */
+  private async testOpenAICompatibleKey(apiKey: string, provider: APIProvider): Promise<{valid: boolean, error?: string}> {
+    try {
+      const baseURL = PROVIDER_BASE_URLS[provider];
+      const openai = new OpenAI({ apiKey, baseURL });
+      await openai.models.list();
+      return { valid: true };
+    } catch (error: any) {
+      console.error(`${provider} API key test failed:`, error);
+      let errorMessage = `Unknown error validating ${provider} API key`;
+
+      if (error.status === 401) {
+        errorMessage = `Invalid API key. Please check your ${provider} key and try again.`;
+      } else if (error.status === 429) {
+        errorMessage = `Rate limit exceeded on ${provider}. Please try again later.`;
+      } else if (error.message) {
+        errorMessage = `Error: ${error.message}`;
+      }
+
       return { valid: false, error: errorMessage };
     }
   }

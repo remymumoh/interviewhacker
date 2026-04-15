@@ -10,6 +10,7 @@ import fs from 'fs';
 import path from 'path';
 import { app } from 'electron';
 import { configHelper } from './ConfigHelper';
+import { APIProvider, PROVIDER_IS_OPENAI_COMPATIBLE, PROVIDER_BASE_URLS } from '../shared/aiModels';
 
 export interface TranscriptionResult {
   text: string;
@@ -74,12 +75,12 @@ export class TranscriptionHelper implements ITranscriptionHelper {
   /**
    * Checks if the current provider supports speech recognition
    */
-  private isSpeechRecognitionSupported(provider: "openai" | "gemini" | "anthropic"): boolean {
-    // OpenAI (Whisper) and Gemini (Audio Understanding) support speech recognition
+  private isSpeechRecognitionSupported(provider: APIProvider): boolean {
+    // Only OpenAI (Whisper) and Gemini (Audio Understanding) support speech recognition
     return provider === "openai" || provider === "gemini";
   }
 
-  private formatProviderError(provider: "openai" | "gemini" | "anthropic", error: any, context: string): string {
+  private formatProviderError(provider: APIProvider, error: any, context: string): string {
     const status =
       typeof error?.status === "number"
         ? error.status

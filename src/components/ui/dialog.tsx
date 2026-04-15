@@ -15,6 +15,8 @@ const DialogOverlay = React.forwardRef<
   <DialogPrimitive.Overlay
     ref={ref}
     className={cn("fixed inset-0 bg-black bg-opacity-50 z-50", className)}
+    // Prevent overlay click from closing in panel windows
+    onPointerDown={(e) => e.preventDefault()}
     {...props}
   />
 ))
@@ -36,6 +38,9 @@ const DialogContent = React.forwardRef<
         className
       )}
       style={{ maxHeight: '90vh', overflow: 'auto' }}
+      // Prevent close when interacting outside in panel windows
+      onPointerDownOutside={(e) => e.preventDefault()}
+      onInteractOutside={(e) => e.preventDefault()}
       {...props}
     >
       {children}

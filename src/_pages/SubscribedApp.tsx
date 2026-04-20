@@ -1,9 +1,15 @@
 // file: src/components/SubscribedApp.tsx
 import { useQueryClient } from "@tanstack/react-query"
-import { useEffect, useRef, useState } from "react"
+import { lazy, Suspense, useEffect, useRef, useState } from "react"
 import Queue from "../_pages/Queue"
 import Solutions from "../_pages/Solutions"
 import { useToast } from "../contexts/toast"
+
+const SettingsDialog = lazy(() =>
+  import("../components/Settings/SettingsDialog").then(module => ({
+    default: module.SettingsDialog
+  }))
+)
 
 interface SubscribedAppProps {
   credits: number
@@ -17,7 +23,7 @@ const SubscribedApp: React.FC<SubscribedAppProps> = ({
   setLanguage
 }) => {
   const queryClient = useQueryClient()
-  const [view, setView] = useState<"queue" | "solutions" | "debug">("queue")
+  const [view, setView] = useState<"queue" | "solutions" | "debug" | "settings">("queue")
   const containerRef = useRef<HTMLDivElement>(null)
   const { showToast } = useToast()
 
@@ -136,7 +142,18 @@ const SubscribedApp: React.FC<SubscribedAppProps> = ({
 
   return (
     <div ref={containerRef} className="min-h-0">
-      {view === "queue" ? (
+      {view === "settings" ? (
+        <div className="px-4 py-3">
+          <Suspense fallback={null}>
+            <SettingsDialog
+              open={true}
+              onOpenChange={(open) => {
+                if (!open) setView("queue");
+              }}
+            />
+          </Suspense>
+        </div>
+      ) : view === "queue" ? (
         <Queue
           setView={setView}
           credits={credits}

@@ -18,7 +18,7 @@ async function fetchScreenshots(): Promise<Screenshot[]> {
 }
 
 interface QueueProps {
-  setView: (view: "queue" | "solutions" | "debug") => void
+  setView: (view: "queue" | "solutions" | "debug" | "settings") => void
   credits: number
   currentLanguage: string
   setLanguage: (language: string) => void
@@ -123,10 +123,6 @@ const Queue: React.FC<QueueProps> = ({
     }
   }, [screenshots])
 
-  const handleOpenSettings = () => {
-    window.electronAPI.openSettingsPortal();
-  };
-  
   return (
     <div ref={contentRef} className={`bg-transparent w-full`}>
       <div className="px-4 py-3">
@@ -157,7 +153,7 @@ const Queue: React.FC<QueueProps> = ({
           <div className="flex justify-end">
             <div
               className="text-xs text-white/70 hover:text-white/90 backdrop-blur-md bg-black/60 rounded-lg py-2 px-3 cursor-pointer flex items-center gap-2 transition-colors"
-              onClick={() => window.electronAPI.openSettingsPortal()}
+              onClick={() => setView("settings")}
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-3.5 h-3.5">
                 <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l-.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />

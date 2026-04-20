@@ -39,6 +39,7 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
     DEFAULT_MODELS.openai.answerModel
   );
   const [speechRecognitionModel, setSpeechRecognitionModel] = useState("whisper-1");
+  const [language, setLanguage] = useState("python");
   const [candidateProfile, setCandidateProfile] = useState<CandidateProfile>({
     name: "",
     resume: "",
@@ -75,6 +76,7 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
         debuggingModel?: string;
         answerModel?: string;
         speechRecognitionModel?: string;
+        language?: string;
         candidateProfile?: CandidateProfile;
       }
 
@@ -100,8 +102,9 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
           setSpeechRecognitionModel(
             config.speechRecognitionModel ||
               providerDefaults.speechRecognitionModel ||
-              (config.apiProvider === "gemini" ? "gemini-3-flash-preview" : "whisper-1")
+              (config.apiProvider === "gemini" ? "gemini-2.0-flash" : "whisper-1")
           );
+          setLanguage(config.language || "python");
           setCandidateProfile(config.candidateProfile || {
             name: "",
             resume: "",
@@ -145,6 +148,7 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
         debuggingModel,
         answerModel,
         speechRecognitionModel,
+        language,
         candidateProfile,
       });
       
@@ -177,23 +181,6 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
   };
 
   const settingsRef = useRef<HTMLDivElement>(null);
-
-  // Report dimensions so the window sizes correctly
-  useEffect(() => {
-    if (!open || !settingsRef.current) return;
-    const updateSize = () => {
-      if (settingsRef.current) {
-        window.electronAPI.updateContentDimensions({
-          width: settingsRef.current.scrollWidth,
-          height: settingsRef.current.scrollHeight,
-        });
-      }
-    };
-    updateSize();
-    const observer = new ResizeObserver(updateSize);
-    observer.observe(settingsRef.current);
-    return () => observer.disconnect();
-  }, [open]);
 
   if (!open) return null;
 
@@ -343,6 +330,51 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
             </div>
           </div>
           
+          {/* Programming Language Selection */}
+          <div className="space-y-2 mt-4">
+            <label className="text-sm font-medium text-white" htmlFor="language">
+              Programming Language
+            </label>
+            <p className="text-xs text-white/60">
+              Language used for generated solutions and code
+            </p>
+            <select
+              id="language"
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="w-full bg-black/50 text-white/90 rounded-lg px-3 py-2 text-sm outline-none border border-white/10 focus:border-white/20"
+              style={{ WebkitAppearance: 'menulist' }}
+            >
+              <option value="python">Python</option>
+              <option value="javascript">JavaScript</option>
+              <option value="typescript">TypeScript</option>
+              <option value="java">Java</option>
+              <option value="cpp">C++</option>
+              <option value="c">C</option>
+              <option value="csharp">C#</option>
+              <option value="golang">Go</option>
+              <option value="rust">Rust</option>
+              <option value="swift">Swift</option>
+              <option value="kotlin">Kotlin</option>
+              <option value="scala">Scala</option>
+              <option value="ruby">Ruby</option>
+              <option value="php">PHP</option>
+              <option value="dart">Dart</option>
+              <option value="r">R</option>
+              <option value="elixir">Elixir</option>
+              <option value="haskell">Haskell</option>
+              <option value="ocaml">OCaml</option>
+              <option value="clojure">Clojure</option>
+              <option value="lua">Lua</option>
+              <option value="julia">Julia</option>
+              <option value="erlang">Erlang</option>
+              <option value="fsharp">F#</option>
+              <option value="nim">Nim</option>
+              <option value="zig">Zig</option>
+              <option value="sql">SQL</option>
+            </select>
+          </div>
+
           <div className="space-y-4 mt-4">
             <label className="text-sm font-medium text-white">AI Model Selection</label>
             <p className="text-xs text-white/60 -mt-3 mb-2">

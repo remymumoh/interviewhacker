@@ -72,6 +72,44 @@ export class ProcessingHelper {
     return `[${provider}] ${context} failed${statusPart}: ${message}`;
   }
 
+  /**
+   * Extract a JSON object from an AI response that may contain surrounding text.
+   * Handles: raw JSON, markdown code blocks, JSON embedded in natural language.
+   */
+  private extractJSON(text: string): any {
+    // 1. Strip markdown code blocks
+    let cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+
+    // 2. Try direct parse first
+    try {
+      return JSON.parse(cleaned);
+    } catch {}
+
+    // 3. Try to find a JSON object in the text using brace matching
+    const firstBrace = cleaned.indexOf('{');
+    if (firstBrace !== -1) {
+      let depth = 0;
+      let lastBrace = -1;
+      for (let i = firstBrace; i < cleaned.length; i++) {
+        if (cleaned[i] === '{') depth++;
+        else if (cleaned[i] === '}') {
+          depth--;
+          if (depth === 0) { lastBrace = i; break; }
+        }
+      }
+      if (lastBrace !== -1) {
+        try {
+          return JSON.parse(cleaned.substring(firstBrace, lastBrace + 1));
+        } catch {}
+      }
+    }
+
+    // 4. Last resort: throw with a helpful message
+    throw new SyntaxError(
+      `AI response was not valid JSON. Response started with: "${text.substring(0, 80)}..."`
+    );
+  }
+
   constructor(deps: IProcessingHelperDeps) {
     this.deps = deps
     this.screenshotHelper = deps.getScreenshotHelper()
@@ -524,12 +562,10 @@ export class ProcessingHelper {
 
         // Parse the response
         try {
-          const responseText = extractionResponse.choices[0].message.content;
-          // Handle when OpenAI might wrap the JSON in markdown code blocks
-          const jsonText = responseText.replace(/```json|```/g, '').trim();
-          problemInfo = JSON.parse(jsonText);
+          const responseText = extractionResponse.choices[0].message.content || '';
+          problemInfo = this.extractJSON(responseText);
         } catch (error) {
-          console.error("Error parsing OpenAI response:", error);
+          console.error("Error parsing AI response:", error);
           return {
             success: false,
             error: "Failed to parse problem information. Please try again or use clearer screenshots."
@@ -590,10 +626,7 @@ export class ProcessingHelper {
           }
           
           const responseText = responseData.candidates[0].content.parts[0].text;
-          
-          // Handle when Gemini might wrap the JSON in markdown code blocks
-          const jsonText = responseText.replace(/```json|```/g, '').trim();
-          problemInfo = JSON.parse(jsonText);
+          problemInfo = this.extractJSON(responseText);
         } catch (error) {
           console.error("Error using Gemini API:", error);
           return {
@@ -612,11 +645,11 @@ export class ProcessingHelper {
         try {
           // Get conversation context if available
           const conversationContext = this.getConversationContext();
-          
+
           const anthropicPrompt = conversationContext
-            ? `Extract the coding problem details from these screenshots. Consider the following conversation context:\n\n${conversationContext}\n\nReturn in JSON format with these fields: problem_statement, constraints, example_input, example_output. Preferred coding language is ${language}.`
-            : `Extract the coding problem details from these screenshots. Return in JSON format with these fields: problem_statement, constraints, example_input, example_output. Preferred coding language is ${language}.`;
-          
+            ? `You are a coding challenge interpreter. Analyze the screenshots and extract the coding problem details. Consider this conversation context:\n\n${conversationContext}\n\nIMPORTANT: You MUST respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. The JSON must have exactly these fields: problem_statement, constraints, example_input, example_output. Preferred coding language: ${language}.`
+            : `You are a coding challenge interpreter. Analyze the screenshots and extract the coding problem details.\n\nIMPORTANT: You MUST respond with ONLY a valid JSON object. No explanations, no markdown, no text before or after the JSON. The JSON must have exactly these fields: problem_statement, constraints, example_input, example_output. Preferred coding language: ${language}.`;
+
           const messages = [
             {
               role: "user" as const,
@@ -638,19 +671,18 @@ export class ProcessingHelper {
           ];
 
           const response = await this.anthropicClient.messages.create({
-            model: config.extractionModel || "claude-3-7-sonnet-20250219",
+            model: config.extractionModel || "claude-sonnet-4-20250514",
             max_tokens: 4000,
             messages: messages,
             temperature: 0.2
           });
 
           const responseText = (response.content[0] as { type: 'text', text: string }).text;
-          const jsonText = responseText.replace(/```json|```/g, '').trim();
-          problemInfo = JSON.parse(jsonText);
+          // Try to extract JSON from the response - Claude may wrap it in text or code blocks
+          problemInfo = this.extractJSON(responseText);
         } catch (error: any) {
           console.error("Error using Anthropic API:", error);
 
-          // Add specific handling for Claude's limitations
           if (error.status === 429) {
             return {
               success: false,
@@ -659,7 +691,7 @@ export class ProcessingHelper {
           } else if (error.status === 413 || (error.message && error.message.includes("token"))) {
             return {
               success: false,
-              error: "Your screenshots contain too much information for Claude to process. Switch to OpenAI or Gemini in settings which can handle larger inputs."
+              error: "Screenshots too large for Claude. Try fewer screenshots or switch to Gemini."
             };
           }
 
@@ -894,7 +926,7 @@ Your solution should be efficient, thoroughly commented with explanations, and h
 
           // Send to Anthropic API
           const response = await this.anthropicClient.messages.create({
-            model: config.solutionModel || "claude-3-7-sonnet-20250219",
+            model: config.solutionModel || "claude-sonnet-4-20250514",
             max_tokens: 4000,
             messages: messages,
             temperature: 0.2
@@ -1253,7 +1285,7 @@ If you include code examples, use proper markdown code blocks with language spec
           }
 
           const response = await this.anthropicClient.messages.create({
-            model: config.debuggingModel || "claude-3-7-sonnet-20250219",
+            model: config.debuggingModel || "claude-sonnet-4-20250514",
             max_tokens: 4000,
             messages: messages,
             temperature: 0.2

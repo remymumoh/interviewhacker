@@ -3,11 +3,23 @@ import React, { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 // Dynamic import for syntax highlighter - loaded only when code is displayed
 // This reduces initial bundle size significantly
-const SyntaxHighlighter = lazy(() => 
-  import("react-syntax-highlighter").then(module => ({ 
-    default: module.Prism 
+const SyntaxHighlighter = lazy(() =>
+  import("react-syntax-highlighter").then(module => ({
+    default: module.Prism
   }))
 )
+
+// Load the Dracula theme and override the comment colour to bright yellow
+// so comments stand out against the dark code background.
+import { dracula } from "react-syntax-highlighter/dist/esm/styles/prism"
+
+const codeTheme = {
+  ...dracula,
+  'comment': { ...(dracula as any).comment, color: '#FFD54F', fontStyle: 'italic' },
+  'prolog': { ...(dracula as any).prolog, color: '#FFD54F', fontStyle: 'italic' },
+  'doctype': { ...(dracula as any).doctype, color: '#FFD54F', fontStyle: 'italic' },
+  'cdata': { ...(dracula as any).cdata, color: '#FFD54F', fontStyle: 'italic' },
+}
 
 import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
 
@@ -90,17 +102,7 @@ const SolutionSection = ({
             <SyntaxHighlighter
               showLineNumbers
               language={currentLanguage == "golang" ? "go" : currentLanguage}
-              style={(() => {
-                // Dynamically import style to reduce initial bundle size
-                // This will be code-split by Vite
-                try {
-                  // Use dynamic import for better tree-shaking
-                  const styleModule = require("react-syntax-highlighter/dist/esm/styles/prism")
-                  return styleModule.dracula || {}
-                } catch {
-                  return {}
-                }
-              })()}
+              style={codeTheme as any}
             customStyle={{
               maxWidth: "100%",
               margin: 0,
@@ -276,20 +278,21 @@ const Solutions: React.FC<SolutionsProps> = ({
     // Keyboard scroll handlers (Cmd+J / Cmd+K)
     // Scroll the inner solution container (which now has overflow-y:auto),
     // falling back to window scroll if the ref isn't mounted yet.
+    // Jump ~75% of the visible viewport per press for a "page-like" feel.
     const handleScrollDown = () => {
       const el = solutionScrollRef.current;
       if (el && el.scrollHeight > el.clientHeight) {
-        el.scrollBy({ top: 150, behavior: 'smooth' });
+        el.scrollBy({ top: Math.max(400, el.clientHeight * 0.75), behavior: 'auto' });
       } else {
-        window.scrollBy({ top: 150, behavior: 'smooth' });
+        window.scrollBy({ top: Math.max(400, window.innerHeight * 0.75), behavior: 'auto' });
       }
     };
     const handleScrollUp = () => {
       const el = solutionScrollRef.current;
       if (el && el.scrollHeight > el.clientHeight) {
-        el.scrollBy({ top: -150, behavior: 'smooth' });
+        el.scrollBy({ top: -Math.max(400, el.clientHeight * 0.75), behavior: 'auto' });
       } else {
-        window.scrollBy({ top: -150, behavior: 'smooth' });
+        window.scrollBy({ top: -Math.max(400, window.innerHeight * 0.75), behavior: 'auto' });
       }
     };
     window.addEventListener('content-scroll-down', handleScrollDown);

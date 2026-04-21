@@ -81,6 +81,15 @@ const electronAPI = {
       ipcRenderer.removeListener("content-scroll-up", subscription)
     }
   },
+  onToast: (
+    callback: (data: { title: string; description: string; variant: "neutral" | "success" | "error" }) => void
+  ) => {
+    const subscription = (_: any, data: any) => callback(data)
+    ipcRenderer.on("toast", subscription)
+    return () => {
+      ipcRenderer.removeListener("toast", subscription)
+    }
+  },
   onSolutionStart: (callback: () => void) => {
     const subscription = () => callback()
     ipcRenderer.on(PROCESSING_EVENTS.INITIAL_START, subscription)

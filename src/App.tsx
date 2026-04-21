@@ -203,6 +203,12 @@ function App() {
     // Setup API key invalid listener
     window.electronAPI.onApiKeyInvalid(onApiKeyInvalid)
 
+    // Generic toast listener — main process can push informational messages
+    // (e.g. model-fallback notifications) that show up in the toast UI.
+    const unsubscribeToast = window.electronAPI.onToast((data) => {
+      showToast(data.title, data.description, data.variant);
+    });
+
     // Define a no-op handler for solution success
     const unsubscribeSolutionSuccess = window.electronAPI.onSolutionSuccess(
       () => {
@@ -214,6 +220,7 @@ function App() {
     // Cleanup function
     return () => {
       window.electronAPI.removeListener("API_KEY_INVALID", onApiKeyInvalid)
+      unsubscribeToast()
       unsubscribeSolutionSuccess()
       window.__IS_INITIALIZED__ = false
       setIsInitialized(false)

@@ -106,6 +106,53 @@ export class ProcessingHelper {
   }
 
   /**
+   * Call Anthropic with automatic fallback: if the requested model returns
+   * 404 (not_found_error), retry once with the provider's default model and
+   * persist that default to config so the user doesn't hit the same 404 again.
+   * Also notifies the renderer so a toast can be shown.
+   */
+  private async callAnthropicWithFallback(
+    requestedModel: string,
+    fallbackModel: string,
+    categoryKey: "extractionModel" | "solutionModel" | "debuggingModel",
+    createRequest: (model: string) => Promise<any>
+  ): Promise<any> {
+    try {
+      return await createRequest(requestedModel);
+    } catch (error: any) {
+      const isModelNotFound =
+        error?.status === 404 &&
+        typeof error?.error?.error?.message === "string" &&
+        error.error.error.message.toLowerCase().includes("model");
+
+      if (isModelNotFound && requestedModel !== fallbackModel) {
+        console.warn(
+          `Anthropic 404 for model "${requestedModel}". Falling back to "${fallbackModel}" and saving as default.`
+        );
+        // Persist the working model so we don't retry the bad one next time
+        try {
+          configHelper.updateConfig({ [categoryKey]: fallbackModel } as any);
+        } catch {}
+
+        // Notify renderer so user sees why the model changed
+        try {
+          const mainWindow = this.deps.getMainWindow();
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("toast", {
+              title: "Model unavailable",
+              description: `"${requestedModel}" is not available for your key. Switched to "${fallbackModel}".`,
+              variant: "neutral",
+            });
+          }
+        } catch {}
+
+        return await createRequest(fallbackModel);
+      }
+      throw error;
+    }
+  }
+
+  /**
    * Validate that an API key looks reasonable before handing it to an SDK.
    * Catches cases where the key got clobbered with HTML, whitespace, or
    * something obviously wrong — HTTP header validation would crash the
@@ -729,12 +776,17 @@ export class ProcessingHelper {
             }
           ];
 
-          const response = await this.anthropicClient.messages.create({
-            model: config.extractionModel || "claude-3-5-sonnet-20241022",
-            max_tokens: 4000,
-            messages: messages,
-            temperature: 0.2
-          });
+          const response = await this.callAnthropicWithFallback(
+            config.extractionModel || DEFAULT_MODELS.anthropic.extractionModel,
+            DEFAULT_MODELS.anthropic.extractionModel,
+            "extractionModel",
+            (model) => this.anthropicClient!.messages.create({
+              model,
+              max_tokens: 4000,
+              messages: messages,
+              temperature: 0.2,
+            })
+          );
 
           const responseText = (response.content[0] as { type: 'text', text: string }).text;
           // Try to extract JSON from the response - Claude may wrap it in text or code blocks
@@ -983,13 +1035,18 @@ Your solution should be efficient, thoroughly commented with explanations, and h
             }
           ];
 
-          // Send to Anthropic API
-          const response = await this.anthropicClient.messages.create({
-            model: config.solutionModel || "claude-3-5-sonnet-20241022",
-            max_tokens: 4000,
-            messages: messages,
-            temperature: 0.2
-          });
+          // Send to Anthropic API with automatic fallback on 404
+          const response = await this.callAnthropicWithFallback(
+            config.solutionModel || DEFAULT_MODELS.anthropic.solutionModel,
+            DEFAULT_MODELS.anthropic.solutionModel,
+            "solutionModel",
+            (model) => this.anthropicClient!.messages.create({
+              model,
+              max_tokens: 4000,
+              messages: messages,
+              temperature: 0.2,
+            })
+          );
 
           responseContent = (response.content[0] as { type: 'text', text: string }).text;
         } catch (error: any) {
@@ -1348,13 +1405,18 @@ If you include code examples, use proper markdown code blocks with language spec
             });
           }
 
-          const response = await this.anthropicClient.messages.create({
-            model: config.debuggingModel || "claude-3-5-sonnet-20241022",
-            max_tokens: 4000,
-            messages: messages,
-            temperature: 0.2
-          });
-          
+          const response = await this.callAnthropicWithFallback(
+            config.debuggingModel || DEFAULT_MODELS.anthropic.debuggingModel,
+            DEFAULT_MODELS.anthropic.debuggingModel,
+            "debuggingModel",
+            (model) => this.anthropicClient!.messages.create({
+              model,
+              max_tokens: 4000,
+              messages: messages,
+              temperature: 0.2,
+            })
+          );
+
           debugContent = (response.content[0] as { type: 'text', text: string }).text;
         } catch (error: any) {
           console.error("Error using Anthropic API for debugging:", error);

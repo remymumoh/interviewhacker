@@ -23,6 +23,7 @@ export interface ElectronAPI {
   onResetView: (callback: () => void) => () => void
   onContentScrollDown: (callback: () => void) => () => void
   onContentScrollUp: (callback: () => void) => () => void
+  onToast: (callback: (data: { title: string; description: string; variant: "neutral" | "success" | "error" }) => void) => () => void
   onSolutionStart: (callback: () => void) => () => void
   onDebugStart: (callback: () => void) => () => void
   onDebugSuccess: (callback: (data: any) => void) => () => void

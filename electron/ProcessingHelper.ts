@@ -106,10 +106,82 @@ export class ProcessingHelper {
   }
 
   /**
-   * Call Anthropic with automatic fallback: if the requested model returns
-   * 404 (not_found_error), retry once with the provider's default model and
-   * persist that default to config so the user doesn't hit the same 404 again.
-   * Also notifies the renderer so a toast can be shown.
+   * Cache of models discovered for the current apiKey — avoids re-fetching
+   * /v1/models on every request. Reset by clearAnthropicModelCache().
+   */
+  private anthropicAvailableModels: string[] | null = null;
+
+  private clearAnthropicModelCache(): void {
+    this.anthropicAvailableModels = null;
+  }
+
+  /**
+   * Query Anthropic's /v1/models for what the current key can actually use.
+   * Returns the list of model ids (most recent first) or null on failure.
+   */
+  private async fetchAnthropicAvailableModels(apiKey: string): Promise<string[] | null> {
+    if (this.anthropicAvailableModels) return this.anthropicAvailableModels;
+    try {
+      const res = await fetch("https://api.anthropic.com/v1/models", {
+        headers: {
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { data?: Array<{ id: string }> };
+      const ids = (data.data || []).map((m) => m.id);
+      if (ids.length === 0) return null;
+      this.anthropicAvailableModels = ids;
+      return ids;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Pick the best model from an available-list for a given category.
+   * Ranks (roughly): 4.x > 3.7 > 3.5 Sonnet > 3 Opus > 3.5 Haiku > 3 Sonnet > 3 Haiku.
+   * For answer suggestions we prefer cheaper/faster Haiku-class.
+   */
+  private pickBestAvailableModel(
+    available: string[],
+    category: "extractionModel" | "solutionModel" | "debuggingModel" | "answerModel"
+  ): string | null {
+    // Preference order per category (regex patterns, first match wins)
+    const preferences =
+      category === "answerModel"
+        ? [
+            /^claude-.*haiku.*4/i,
+            /^claude-3-5-haiku/i,
+            /^claude-.*haiku/i,
+            /^claude-.*sonnet.*4/i,
+            /^claude-3-7-sonnet/i,
+            /^claude-3-5-sonnet/i,
+          ]
+        : [
+            /^claude-.*opus.*4/i,
+            /^claude-.*sonnet.*4/i,
+            /^claude-3-7-sonnet/i,
+            /^claude-3-5-sonnet/i,
+            /^claude-3-opus/i,
+            /^claude-3-5-haiku/i,
+            /^claude-3-sonnet/i,
+            /^claude-3-haiku/i,
+          ];
+    for (const pattern of preferences) {
+      const hit = available.find((id) => pattern.test(id));
+      if (hit) return hit;
+    }
+    return available[0] || null;
+  }
+
+  /**
+   * Call Anthropic with smart automatic fallback on 404:
+   * 1. Try the requested model
+   * 2. On 404, fetch /v1/models to learn what the key can actually use
+   * 3. Pick the best available model for this category, retry
+   * 4. Persist the working model to config, notify user via toast
    */
   private async callAnthropicWithFallback(
     requestedModel: string,
@@ -125,30 +197,55 @@ export class ProcessingHelper {
         typeof error?.error?.error?.message === "string" &&
         error.error.error.message.toLowerCase().includes("model");
 
-      if (isModelNotFound && requestedModel !== fallbackModel) {
-        console.warn(
-          `Anthropic 404 for model "${requestedModel}". Falling back to "${fallbackModel}" and saving as default.`
-        );
-        // Persist the working model so we don't retry the bad one next time
-        try {
-          configHelper.updateConfig({ [categoryKey]: fallbackModel } as any);
-        } catch {}
+      if (!isModelNotFound) throw error;
 
-        // Notify renderer so user sees why the model changed
-        try {
-          const mainWindow = this.deps.getMainWindow();
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send("toast", {
-              title: "Model unavailable",
-              description: `"${requestedModel}" is not available for your key. Switched to "${fallbackModel}".`,
-              variant: "neutral",
-            });
-          }
-        } catch {}
+      // Step 1: ask the API what models the key actually has access to
+      const apiKey = configHelper.loadConfig().apiKey;
+      const available = await this.fetchAnthropicAvailableModels(apiKey);
 
-        return await createRequest(fallbackModel);
+      let chosen: string | null = null;
+      if (available && available.length > 0) {
+        chosen = this.pickBestAvailableModel(available, categoryKey);
       }
-      throw error;
+
+      // Step 2: if /v1/models didn't work (or returned nothing useful), try
+      // the hard-coded fallback as a last resort
+      if (!chosen && requestedModel !== fallbackModel) {
+        chosen = fallbackModel;
+      }
+
+      if (!chosen || chosen === requestedModel) {
+        // Nothing better to try
+        const detail = available
+          ? `Your key has access to: ${available.join(", ")}.`
+          : `Could not list your available models.`;
+        const err = new Error(
+          `Model "${requestedModel}" not available and no fallback worked. ${detail}`
+        );
+        (err as any).status = 404;
+        throw err;
+      }
+
+      console.warn(
+        `Anthropic 404 for "${requestedModel}". Falling back to "${chosen}" (from ${available ? "/v1/models" : "default"}) and saving.`
+      );
+
+      try {
+        configHelper.updateConfig({ [categoryKey]: chosen } as any);
+      } catch {}
+
+      try {
+        const mainWindow = this.deps.getMainWindow();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("toast", {
+            title: "Model unavailable",
+            description: `"${requestedModel}" is not available for your key. Switched to "${chosen}".`,
+            variant: "neutral",
+          });
+        }
+      } catch {}
+
+      return await createRequest(chosen);
     }
   }
 

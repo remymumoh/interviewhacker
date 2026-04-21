@@ -125,21 +125,18 @@ export class ShortcutsHelper {
     });
 
     // Content scroll (Ctrl/Cmd+J to scroll down, Ctrl/Cmd+K to scroll up)
-    globalShortcut.register("CommandOrControl+J", async () => {
+    // Uses native IPC send (not executeJavaScript) for low latency.
+    globalShortcut.register("CommandOrControl+J", () => {
       const mainWindow = this.deps.getMainWindow();
       if (mainWindow && !mainWindow.isDestroyed()) {
-        await mainWindow.webContents.executeJavaScript(`
-          window.dispatchEvent(new CustomEvent('content-scroll-down'));
-        `);
+        mainWindow.webContents.send("content-scroll-down");
       }
     });
 
-    globalShortcut.register("CommandOrControl+K", async () => {
+    globalShortcut.register("CommandOrControl+K", () => {
       const mainWindow = this.deps.getMainWindow();
       if (mainWindow && !mainWindow.isDestroyed()) {
-        await mainWindow.webContents.executeJavaScript(`
-          window.dispatchEvent(new CustomEvent('content-scroll-up'));
-        `);
+        mainWindow.webContents.send("content-scroll-up");
       }
     });
 

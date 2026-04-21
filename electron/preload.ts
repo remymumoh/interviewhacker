@@ -67,6 +67,20 @@ const electronAPI = {
       ipcRenderer.removeListener("reset-view", subscription)
     }
   },
+  onContentScrollDown: (callback: () => void) => {
+    const subscription = () => callback()
+    ipcRenderer.on("content-scroll-down", subscription)
+    return () => {
+      ipcRenderer.removeListener("content-scroll-down", subscription)
+    }
+  },
+  onContentScrollUp: (callback: () => void) => {
+    const subscription = () => callback()
+    ipcRenderer.on("content-scroll-up", subscription)
+    return () => {
+      ipcRenderer.removeListener("content-scroll-up", subscription)
+    }
+  },
   onSolutionStart: (callback: () => void) => {
     const subscription = () => callback()
     ipcRenderer.on(PROCESSING_EVENTS.INITIAL_START, subscription)

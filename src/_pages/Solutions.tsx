@@ -275,9 +275,7 @@ const Solutions: React.FC<SolutionsProps> = ({
     }
     updateDimensions()
 
-    // Keyboard scroll handlers (Cmd+J / Cmd+K)
-    // Scroll the inner solution container (which now has overflow-y:auto),
-    // falling back to window scroll if the ref isn't mounted yet.
+    // Keyboard scroll handlers (Cmd+J / Cmd+K) — delivered via native IPC for low latency.
     // Jump ~75% of the visible viewport per press for a "page-like" feel.
     const handleScrollDown = () => {
       const el = solutionScrollRef.current;
@@ -295,8 +293,8 @@ const Solutions: React.FC<SolutionsProps> = ({
         window.scrollBy({ top: -Math.max(400, window.innerHeight * 0.75), behavior: 'auto' });
       }
     };
-    window.addEventListener('content-scroll-down', handleScrollDown);
-    window.addEventListener('content-scroll-up', handleScrollUp);
+    const unsubscribeScrollDown = window.electronAPI.onContentScrollDown(handleScrollDown);
+    const unsubscribeScrollUp = window.electronAPI.onContentScrollUp(handleScrollUp);
 
     // Set up event listeners
     const cleanupFunctions = [
@@ -442,8 +440,8 @@ const Solutions: React.FC<SolutionsProps> = ({
     return () => {
       resizeObserver.disconnect()
       cleanupFunctions.forEach((cleanup) => cleanup())
-      window.removeEventListener('content-scroll-down', handleScrollDown)
-      window.removeEventListener('content-scroll-up', handleScrollUp)
+      unsubscribeScrollDown()
+      unsubscribeScrollUp()
     }
   }, [isTooltipVisible, tooltipHeight])
 

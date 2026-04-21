@@ -13,6 +13,7 @@ export interface SolutionCommandsProps {
   credits: number
   currentLanguage: string
   setLanguage: (language: string) => void
+  setView?: (view: "queue" | "solutions" | "debug" | "settings") => void
 }
 
 const handleSignOut = async () => {
@@ -35,7 +36,8 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
   extraScreenshots = [],
   credits,
   currentLanguage,
-  setLanguage
+  setLanguage,
+  setView
 }) => {
   const [isTooltipVisible, setIsTooltipVisible] = useState(false)
   const tooltipRef = useRef<HTMLDivElement>(null)
@@ -490,7 +492,7 @@ const SolutionCommands: React.FC<SolutionCommandsProps> = ({
                           <span>OpenAI API Settings</span>
                           <button
                             className="bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-[11px]"
-                            onClick={() => window.electronAPI.openSettingsPortal()}
+                            onClick={() => setView && setView("settings")}
                           >
                             Settings
                           </button>

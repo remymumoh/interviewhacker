@@ -529,6 +529,7 @@ const Solutions: React.FC<SolutionsProps> = ({
             credits={credits}
             currentLanguage={currentLanguage}
             setLanguage={setLanguage}
+            setView={setView}
           />
 
           {/* Screenshots */}

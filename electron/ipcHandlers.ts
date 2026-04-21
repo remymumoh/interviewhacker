@@ -285,6 +285,14 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
       },
     });
 
+    // CRITICAL: also hide this window from screen capture (Zoom etc.)
+    // Otherwise the API key / personal settings leak when sharing screen.
+    settingsWindow.setContentProtection(true);
+    if (process.platform === "darwin") {
+      settingsWindow.setHiddenInMissionControl(true);
+      settingsWindow.setSkipTaskbar(true);
+    }
+
     // Load the same app URL with a hash to indicate settings mode
     const mainUrl = mainWindow?.webContents.getURL();
     if (mainUrl) {

@@ -132,9 +132,9 @@ const Queue: React.FC<QueueProps> = ({
             credits={credits}
           />
 
-          {/* Recording controls only — no conversation history */}
-          <div className="bg-black/60 rounded-md p-3">
-            <ConversationSection controlsOnly={true} />
+          {/* Recording controls + transcribed conversation history */}
+          <div className="bg-black/60 rounded-md p-3" style={{ display: 'flex', flexDirection: 'column', maxHeight: '400px' }}>
+            <ConversationSection />
           </div>
 
           {/* Screenshots section */}

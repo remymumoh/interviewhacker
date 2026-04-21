@@ -369,19 +369,8 @@ const Solutions: React.FC<SolutionsProps> = ({
         setTimeComplexityData(solutionData.time_complexity || null)
         setSpaceComplexityData(solutionData.space_complexity || null)
 
-        // Add solution summary to conversation so it's part of the flow
-        const thoughtsSummary = solutionData.thoughts?.length
-          ? solutionData.thoughts.join('\n')
-          : '';
-        const solutionSummary = [
-          thoughtsSummary ? `Approach:\n${thoughtsSummary}` : '',
-          solutionData.code ? `\nSolution:\n${solutionData.code}` : '',
-          solutionData.time_complexity ? `\nTime: ${solutionData.time_complexity}` : '',
-          solutionData.space_complexity ? `Space: ${solutionData.space_complexity}` : '',
-        ].filter(Boolean).join('\n');
-        if (solutionSummary) {
-          window.electronAPI.addConversationMessage(solutionSummary, 'interviewee' as any);
-        }
+        // Solution is shown in the Solutions view — don't duplicate it in the
+        // conversation chat. The conversation only tracks transcribed speech.
 
         // Fetch latest screenshots when solution is successful
         const fetchScreenshots = async () => {

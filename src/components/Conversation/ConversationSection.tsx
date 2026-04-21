@@ -287,21 +287,10 @@ export const ConversationSection: React.FC<ConversationSectionProps> = ({ contro
       console.log('[ConvDebug] AI result:', JSON.stringify(result).slice(0, 500));
       if (result.success && result.suggestions) {
         setAiSuggestions(result.suggestions);
-        // Add AI response inline in the conversation
-        const aiText = result.suggestions.suggestions
-          ? result.suggestions.suggestions.join('\n\n')
-          : Array.isArray(result.suggestions)
-            ? result.suggestions.join('\n\n')
-            : String(result.suggestions);
-        const aiMessage: ConversationMessage = {
-          id: `ai-${Date.now()}`,
-          speaker: 'ai',
-          text: aiText,
-          timestamp: Date.now(),
-        };
-        setMessages(prev => [...prev, aiMessage]);
-        scrollToBottom();
-        console.log('[ConvDebug] AI suggestions set and added to conversation');
+        // AI suggestions are shown separately in the Solutions view — don't duplicate
+        // them in the conversation history. The conversation only tracks actual
+        // transcribed speech (interviewer / interviewee).
+        console.log('[ConvDebug] AI suggestions fetched (not added to conversation chat)');
       } else {
         console.log('[ConvDebug] AI result not successful or no suggestions:', result);
       }

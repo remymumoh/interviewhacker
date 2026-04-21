@@ -115,9 +115,11 @@ export const DEFAULT_MODELS: Record<
     speechRecognitionModel: "gemini-2.0-flash",
   },
   anthropic: {
-    extractionModel: "claude-3-7-sonnet-20250219",
-    solutionModel: "claude-3-7-sonnet-20250219",
-    debuggingModel: "claude-3-7-sonnet-20250219",
+    // Default to Claude 3.5 Sonnet — widest availability across accounts.
+    // If your key has Claude 3.7 access, you can pick it in Settings.
+    extractionModel: "claude-3-5-sonnet-20241022",
+    solutionModel: "claude-3-5-sonnet-20241022",
+    debuggingModel: "claude-3-5-sonnet-20241022",
     answerModel: "claude-3-5-haiku-20241022",
   },
   deepseek: {
@@ -183,17 +185,19 @@ export const ALLOWED_MODELS: Record<APIProvider, string[]> = {
     "gemini-1.5-flash",
   ],
   anthropic: [
-    // Claude 3.7 (latest generally available as of this release)
+    // Claude 3.7 (may require specific account access)
     "claude-3-7-sonnet-20250219",
     "claude-3-7-sonnet-latest",
-    // Claude 3.5
+    // Claude 3.5 — widely available
     "claude-3-5-sonnet-20241022",
     "claude-3-5-sonnet-latest",
     "claude-3-5-haiku-20241022",
     "claude-3-5-haiku-latest",
-    // Claude 3 legacy
+    // Claude 3 — universal availability
     "claude-3-opus-20240229",
     "claude-3-opus-latest",
+    "claude-3-sonnet-20240229",
+    "claude-3-haiku-20240307",
   ],
   deepseek: [
     "deepseek-chat",        // DeepSeek V3
@@ -249,10 +253,12 @@ export const MODEL_CATEGORIES: ModelCategoryDefinition[] = [
         { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", description: "Legacy — use 2.5 for best results" },
       ],
       anthropic: [
-        { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Best available — strong performance, extended thinking" },
-        { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", description: "Fast and reliable" },
-        { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku", description: "Fastest, most cost-effective" },
-        { id: "claude-3-opus-20240229", name: "Claude 3 Opus", description: "Legacy — use Claude 4 for best results" },
+        { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", description: "Recommended — widely available, strong performance" },
+        { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Best quality (may need specific account access)" },
+        { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku", description: "Fastest and cheapest" },
+        { id: "claude-3-opus-20240229", name: "Claude 3 Opus", description: "Classic — high quality, slower" },
+        { id: "claude-3-sonnet-20240229", name: "Claude 3 Sonnet", description: "Universal availability, reliable" },
+        { id: "claude-3-haiku-20240307", name: "Claude 3 Haiku", description: "Universal, very cheap" },
       ],
       deepseek: [
         { id: "deepseek-chat", name: "DeepSeek V3", description: "Strong coding model, very cost-effective" },

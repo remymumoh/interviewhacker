@@ -25,15 +25,60 @@ export function initializeIpcHandlers(deps: IIpcHandlerDeps): void {
   ipcMain.handle("validate-api-key", async (_event, apiKey) => {
     // First check the format
     if (!configHelper.isValidApiKeyFormat(apiKey)) {
-      return { 
-        valid: false, 
-        error: "Invalid API key format. OpenAI API keys start with 'sk-'" 
+      return {
+        valid: false,
+        error: "Invalid API key format. OpenAI API keys start with 'sk-'"
       };
     }
-    
+
     // Then test the API key with OpenAI
     const result = await configHelper.testApiKey(apiKey);
     return result;
+  })
+
+  // List available models for a provider's API key.
+  // Returns { success: true, models: string[] } or { success: false, error }.
+  ipcMain.handle("list-available-models", async (_event, provider: string, apiKey: string) => {
+    try {
+      const key = (apiKey || "").trim();
+      if (!key) return { success: false, error: "No API key provided" };
+
+      if (provider === "anthropic") {
+        const res = await fetch("https://api.anthropic.com/v1/models", {
+          headers: {
+            "x-api-key": key,
+            "anthropic-version": "2023-06-01",
+          },
+        });
+        if (!res.ok) {
+          return { success: false, error: `Anthropic API returned ${res.status}` };
+        }
+        const data = await res.json() as { data?: Array<{ id: string }> };
+        const models = (data.data || []).map(m => m.id);
+        return { success: true, models };
+      }
+
+      if (provider === "openai" || provider === "deepseek" || provider === "groq" || provider === "openrouter") {
+        const baseURL =
+          provider === "openai" ? "https://api.openai.com/v1" :
+          provider === "deepseek" ? "https://api.deepseek.com" :
+          provider === "groq" ? "https://api.groq.com/openai/v1" :
+          "https://openrouter.ai/api/v1";
+        const res = await fetch(`${baseURL}/models`, {
+          headers: { "Authorization": `Bearer ${key}` },
+        });
+        if (!res.ok) {
+          return { success: false, error: `${provider} API returned ${res.status}` };
+        }
+        const data = await res.json() as { data?: Array<{ id: string }> };
+        const models = (data.data || []).map(m => m.id);
+        return { success: true, models };
+      }
+
+      return { success: false, error: `Model discovery not supported for ${provider}` };
+    } catch (err: any) {
+      return { success: false, error: err?.message || "Unknown error" };
+    }
   })
 
   // Credits handlers

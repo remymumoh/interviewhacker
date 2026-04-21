@@ -46,7 +46,30 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
     jobDescription: ""
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [availableModels, setAvailableModels] = useState<string[] | null>(null);
+  const [isTestingKey, setIsTestingKey] = useState(false);
   const { showToast } = useToast();
+
+  const handleTestKeyAndListModels = async () => {
+    if (!apiKey) {
+      showToast("No API Key", "Enter your API key first", "neutral");
+      return;
+    }
+    setIsTestingKey(true);
+    try {
+      const res = await window.electronAPI.listAvailableModels(apiProvider, apiKey);
+      if (res.success && res.models) {
+        setAvailableModels(res.models);
+        showToast("Success", `Found ${res.models.length} models available`, "success");
+      } else {
+        showToast("Error", res.error || "Could not list models", "error");
+      }
+    } catch (e: any) {
+      showToast("Error", e?.message || "Request failed", "error");
+    } finally {
+      setIsTestingKey(false);
+    }
+  };
 
   // Sync with external open state
   useEffect(() => {
@@ -263,6 +286,33 @@ export function SettingsDialog({ open: externalOpen, onOpenChange }: SettingsDia
             <p className="text-xs text-white/50">
               Your API key is stored locally and only sent to {PROVIDER_DISPLAY_NAMES[apiProvider]}'s API
             </p>
+            {/* Test key & discover which models the key has access to */}
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleTestKeyAndListModels}
+              disabled={!apiKey || isTestingKey}
+              className="w-full border-white/10 hover:bg-white/5 text-white text-xs py-1 h-auto"
+            >
+              {isTestingKey ? "Checking..." : "Test key & list my available models"}
+            </Button>
+            {availableModels && (
+              <div className="mt-1 p-2 rounded-md bg-white/5 border border-white/10">
+                <p className="text-xs text-white/80 mb-1">
+                  Your key has access to {availableModels.length} models:
+                </p>
+                <div className="text-[10px] text-white/60 max-h-24 overflow-y-auto custom-scrollbar font-mono">
+                  {availableModels.map((m) => (
+                    <div key={m} className="py-0.5">
+                      {m}
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-white/50 mt-1">
+                  Pick one of these below in the AI Model Selection section.
+                </p>
+              </div>
+            )}
             <div className="mt-2 p-2 rounded-md bg-white/5 border border-white/10">
               <p className="text-xs text-white/80 mb-1">Don't have an API key?</p>
               <p className="text-xs text-white/60 mb-1">1. Create an account at{" "}

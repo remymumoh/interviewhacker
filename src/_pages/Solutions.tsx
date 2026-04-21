@@ -196,6 +196,7 @@ const Solutions: React.FC<SolutionsProps> = ({
 }) => {
   const queryClient = useQueryClient()
   const contentRef = useRef<HTMLDivElement>(null)
+  const solutionScrollRef = useRef<HTMLDivElement>(null)
 
   const [debugProcessing, setDebugProcessing] = useState(false)
   const [problemStatementData, setProblemStatementData] =
@@ -273,11 +274,23 @@ const Solutions: React.FC<SolutionsProps> = ({
     updateDimensions()
 
     // Keyboard scroll handlers (Cmd+J / Cmd+K)
+    // Scroll the inner solution container (which now has overflow-y:auto),
+    // falling back to window scroll if the ref isn't mounted yet.
     const handleScrollDown = () => {
-      window.scrollBy({ top: 150, behavior: 'smooth' });
+      const el = solutionScrollRef.current;
+      if (el && el.scrollHeight > el.clientHeight) {
+        el.scrollBy({ top: 150, behavior: 'smooth' });
+      } else {
+        window.scrollBy({ top: 150, behavior: 'smooth' });
+      }
     };
     const handleScrollUp = () => {
-      window.scrollBy({ top: -150, behavior: 'smooth' });
+      const el = solutionScrollRef.current;
+      if (el && el.scrollHeight > el.clientHeight) {
+        el.scrollBy({ top: -150, behavior: 'smooth' });
+      } else {
+        window.scrollBy({ top: -150, behavior: 'smooth' });
+      }
     };
     window.addEventListener('content-scroll-down', handleScrollDown);
     window.addEventListener('content-scroll-up', handleScrollUp);
@@ -530,8 +543,9 @@ const Solutions: React.FC<SolutionsProps> = ({
 
           {/* Solution content — scrollable when too long */}
           <div
+            ref={solutionScrollRef}
             className="w-full text-sm text-gray-100 bg-black/60 rounded-md overflow-y-auto custom-scrollbar"
-            style={{ maxHeight: '70vh' }}
+            style={{ maxHeight: '85vh' }}
           >
             <div className="rounded-lg">
               <div className="px-4 py-3 space-y-4 max-w-full">

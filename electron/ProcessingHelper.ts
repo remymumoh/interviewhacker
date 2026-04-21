@@ -73,6 +73,39 @@ export class ProcessingHelper {
   }
 
   /**
+   * Remove near-identical strings from a list. Compares by normalized form
+   * (lowercased, punctuation stripped, whitespace collapsed). If two items
+   * share more than 70% of their words, the later one is dropped.
+   */
+  private dedupeNearIdentical(items: string[]): string[] {
+    const normalize = (s: string) =>
+      s.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    const tokenize = (s: string) => new Set(normalize(s).split(' ').filter(w => w.length > 2));
+
+    const kept: string[] = [];
+    const keptTokens: Set<string>[] = [];
+
+    for (const item of items) {
+      const tokens = tokenize(item);
+      if (tokens.size === 0) continue;
+
+      const isDuplicate = keptTokens.some(prev => {
+        const intersection = [...tokens].filter(t => prev.has(t)).length;
+        const smaller = Math.min(tokens.size, prev.size);
+        return smaller > 0 && intersection / smaller > 0.7;
+      });
+
+      if (!isDuplicate) {
+        kept.push(item);
+        keptTokens.push(tokens);
+      }
+    }
+
+    return kept;
+  }
+
+  /**
    * Extract a JSON object from an AI response that may contain surrounding text.
    * Handles: raw JSON, markdown code blocks, JSON embedded in natural language.
    */
@@ -822,7 +855,7 @@ LANGUAGE: ${language}
 
 I need the response in the following format:
 1. Code: A clean, optimized implementation in ${language}. Include detailed inline comments explaining each step, key decisions, and why the approach works. Every function, loop, and conditional should have a comment.
-2. Your Thoughts: A list of key insights and reasoning behind your approach
+2. Your Thoughts: Exactly 2-4 DISTINCT bullet points. Each bullet must cover a DIFFERENT aspect — do NOT repeat or rephrase the same idea. Recommended topics (pick 2-4, one per bullet): (a) the core data structure or algorithm chosen, (b) the key observation that makes the approach work, (c) edge cases handled, (d) trade-offs vs. a naive approach. Keep each bullet to one sentence.
 3. Time complexity: O(X) with a detailed explanation (at least 2 sentences)
 4. Space complexity: O(X) with a detailed explanation (at least 2 sentences)
 
@@ -961,15 +994,15 @@ Your solution should be efficient, thoroughly commented with explanations, and h
       const code = codeMatch ? codeMatch[1].trim() : responseContent;
       
       // Extract thoughts, looking for bullet points or numbered lists
-      const thoughtsRegex = /(?:Thoughts:|Key Insights:|Reasoning:|Approach:)([\s\S]*?)(?:Time complexity:|$)/i;
+      const thoughtsRegex = /(?:Thoughts:|Your Thoughts:|Key Insights:|Reasoning:|Approach:)([\s\S]*?)(?:Time complexity:|$)/i;
       const thoughtsMatch = responseContent.match(thoughtsRegex);
       let thoughts: string[] = [];
-      
+
       if (thoughtsMatch && thoughtsMatch[1]) {
         // Extract bullet points or numbered items
         const bulletPoints = thoughtsMatch[1].match(/(?:^|\n)\s*(?:[-*•]|\d+\.)\s*(.*)/g);
         if (bulletPoints) {
-          thoughts = bulletPoints.map(point => 
+          thoughts = bulletPoints.map(point =>
             point.replace(/^\s*(?:[-*•]|\d+\.)\s*/, '').trim()
           ).filter(Boolean);
         } else {
@@ -979,6 +1012,11 @@ Your solution should be efficient, thoroughly commented with explanations, and h
             .filter(Boolean);
         }
       }
+
+      // Deduplicate near-identical thoughts (AI sometimes rephrases the same idea)
+      thoughts = this.dedupeNearIdentical(thoughts);
+      // Cap at 4 thoughts max to avoid wall-of-text
+      thoughts = thoughts.slice(0, 4);
       
       // Extract complexity information
       const timeComplexityPattern = /Time complexity:?\s*([^\n]+(?:\n[^\n]+)*?)(?=\n\s*(?:Space complexity|$))/i;
@@ -1340,9 +1378,10 @@ If you include code examples, use proper markdown code blocks with language spec
       }
 
       const bulletPoints = formattedDebugContent.match(/(?:^|\n)[ ]*(?:[-*•]|\d+\.)[ ]+([^\n]+)/g);
-      const thoughts = bulletPoints 
-        ? bulletPoints.map(point => point.replace(/^[ ]*(?:[-*•]|\d+\.)[ ]+/, '').trim()).slice(0, 5)
+      const rawThoughts = bulletPoints
+        ? bulletPoints.map(point => point.replace(/^[ ]*(?:[-*•]|\d+\.)[ ]+/, '').trim())
         : ["Debug analysis based on your screenshots"];
+      const thoughts = this.dedupeNearIdentical(rawThoughts).slice(0, 4);
       
       const response = {
         code: extractedCode,

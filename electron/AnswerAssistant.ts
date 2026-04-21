@@ -200,17 +200,28 @@ export class AnswerAssistant implements IAnswerAssistant {
           suggestionsText = responseData.candidates[0].content.parts[0].text;
         }
       } else if (config.apiProvider === "anthropic" && this.anthropic) {
-        const response = await this.anthropic.messages.create({
-          model: answerModel,
-          max_tokens: 500,
-          messages: [
-            {
-              role: 'user',
-              content: `${systemMessage}\n\n${contextPrompt}`
-            }
-          ],
-          temperature: 0.7
-        });
+        // Claude 4.5+ deprecated `temperature`. Try with it first, retry without on 400.
+        const anthropicCall = async (omitTemperature: boolean) => {
+          return this.anthropic!.messages.create({
+            model: answerModel,
+            max_tokens: 500,
+            messages: [
+              { role: 'user', content: `${systemMessage}\n\n${contextPrompt}` },
+            ],
+            ...(omitTemperature ? {} : { temperature: 0.7 }),
+          });
+        };
+        let response;
+        try {
+          response = await anthropicCall(false);
+        } catch (e: any) {
+          const msg: string = e?.error?.error?.message || e?.message || "";
+          if (e?.status === 400 && /temperature.*deprecated/i.test(msg)) {
+            response = await anthropicCall(true);
+          } else {
+            throw e;
+          }
+        }
 
         suggestionsText = (response.content[0] as { type: 'text', text: string }).text;
       } else {

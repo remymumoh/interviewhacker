@@ -149,19 +149,32 @@ export class ProcessingHelper {
     category: "extractionModel" | "solutionModel" | "debuggingModel" | "answerModel"
   ): string | null {
     // Preference order per category (regex patterns, first match wins)
+    // Rank by family (newest first) × class (per category).
     const preferences =
       category === "answerModel"
         ? [
-            /^claude-.*haiku.*4/i,
+            /^claude-haiku-4-7/i,
+            /^claude-haiku-4-6/i,
+            /^claude-haiku-4-5/i,
+            /^claude-haiku-4/i,
+            /^claude-sonnet-4-7/i,
+            /^claude-sonnet-4-6/i,
+            /^claude-sonnet-4-5/i,
+            /^claude-sonnet-4/i,
             /^claude-3-5-haiku/i,
-            /^claude-.*haiku/i,
-            /^claude-.*sonnet.*4/i,
             /^claude-3-7-sonnet/i,
             /^claude-3-5-sonnet/i,
+            /^claude-3-haiku/i,
           ]
         : [
-            /^claude-.*opus.*4/i,
-            /^claude-.*sonnet.*4/i,
+            /^claude-opus-4-7/i,
+            /^claude-sonnet-4-7/i,
+            /^claude-opus-4-6/i,
+            /^claude-sonnet-4-6/i,
+            /^claude-opus-4-5/i,
+            /^claude-sonnet-4-5/i,
+            /^claude-opus-4/i,
+            /^claude-sonnet-4/i,
             /^claude-3-7-sonnet/i,
             /^claude-3-5-sonnet/i,
             /^claude-3-opus/i,
@@ -181,16 +194,30 @@ export class ProcessingHelper {
    * 1. Try the requested model
    * 2. On 404, fetch /v1/models to learn what the key can actually use
    * 3. Pick the best available model for this category, retry
-   * 4. Persist the working model to config, notify user via toast
+   * 4. On 400 "temperature is deprecated", retry without temperature
+   * 5. Persist the working model to config, notify user via toast
    */
   private async callAnthropicWithFallback(
     requestedModel: string,
     fallbackModel: string,
     categoryKey: "extractionModel" | "solutionModel" | "debuggingModel",
-    createRequest: (model: string) => Promise<any>
+    createRequest: (model: string, opts: { omitTemperature: boolean }) => Promise<any>
   ): Promise<any> {
+    const runWithRetryOnDeprecatedTemperature = async (model: string): Promise<any> => {
+      try {
+        return await createRequest(model, { omitTemperature: false });
+      } catch (err: any) {
+        const msg: string = err?.error?.error?.message || err?.message || "";
+        if (err?.status === 400 && /temperature.*deprecated/i.test(msg)) {
+          console.warn(`Model "${model}" deprecated temperature — retrying without it.`);
+          return await createRequest(model, { omitTemperature: true });
+        }
+        throw err;
+      }
+    };
+
     try {
-      return await createRequest(requestedModel);
+      return await runWithRetryOnDeprecatedTemperature(requestedModel);
     } catch (error: any) {
       const isModelNotFound =
         error?.status === 404 &&
@@ -245,7 +272,7 @@ export class ProcessingHelper {
         }
       } catch {}
 
-      return await createRequest(chosen);
+      return await runWithRetryOnDeprecatedTemperature(chosen);
     }
   }
 
@@ -877,11 +904,11 @@ export class ProcessingHelper {
             config.extractionModel || DEFAULT_MODELS.anthropic.extractionModel,
             DEFAULT_MODELS.anthropic.extractionModel,
             "extractionModel",
-            (model) => this.anthropicClient!.messages.create({
+            (model, { omitTemperature }) => this.anthropicClient!.messages.create({
               model,
               max_tokens: 4000,
               messages: messages,
-              temperature: 0.2,
+              ...(omitTemperature ? {} : { temperature: 0.2 }),
             })
           );
 
@@ -1137,11 +1164,11 @@ Your solution should be efficient, thoroughly commented with explanations, and h
             config.solutionModel || DEFAULT_MODELS.anthropic.solutionModel,
             DEFAULT_MODELS.anthropic.solutionModel,
             "solutionModel",
-            (model) => this.anthropicClient!.messages.create({
+            (model, { omitTemperature }) => this.anthropicClient!.messages.create({
               model,
               max_tokens: 4000,
               messages: messages,
-              temperature: 0.2,
+              ...(omitTemperature ? {} : { temperature: 0.2 }),
             })
           );
 
@@ -1506,11 +1533,11 @@ If you include code examples, use proper markdown code blocks with language spec
             config.debuggingModel || DEFAULT_MODELS.anthropic.debuggingModel,
             DEFAULT_MODELS.anthropic.debuggingModel,
             "debuggingModel",
-            (model) => this.anthropicClient!.messages.create({
+            (model, { omitTemperature }) => this.anthropicClient!.messages.create({
               model,
               max_tokens: 4000,
               messages: messages,
-              temperature: 0.2,
+              ...(omitTemperature ? {} : { temperature: 0.2 }),
             })
           );
 

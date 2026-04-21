@@ -58,7 +58,7 @@ export const PROVIDER_DISPLAY_NAMES: Record<APIProvider, string> = {
 export const PROVIDER_DESCRIPTIONS: Record<APIProvider, string> = {
   openai: "GPT-4o, o3, o4-mini",
   gemini: "Gemini 2.5 & 2.0",
-  anthropic: "Claude 4.5 & 4.6",
+  anthropic: "Claude 4.6 & 4.7",
   deepseek: "DeepSeek V3 & R1",
   groq: "Ultra-fast inference",
   openrouter: "Multi-provider gateway",
@@ -115,13 +115,13 @@ export const DEFAULT_MODELS: Record<
     speechRecognitionModel: "gemini-2.0-flash",
   },
   anthropic: {
-    // Default to Claude Sonnet 4.5 — latest generally-available Claude 4.x.
+    // Default to Claude Sonnet 4.6 — latest at time of writing.
     // If the key doesn't have access, the smart fallback in ProcessingHelper
     // will auto-discover via /v1/models and pick the best available.
-    extractionModel: "claude-sonnet-4-5",
-    solutionModel: "claude-sonnet-4-5",
-    debuggingModel: "claude-sonnet-4-5",
-    answerModel: "claude-haiku-4-5",
+    extractionModel: "claude-sonnet-4-6",
+    solutionModel: "claude-sonnet-4-6",
+    debuggingModel: "claude-sonnet-4-6",
+    answerModel: "claude-haiku-4-6",
   },
   deepseek: {
     extractionModel: "deepseek-chat",
@@ -149,7 +149,7 @@ export const DEFAULT_MODELS: Record<
 export const DEFAULT_ANSWER_MODELS: Record<APIProvider, string> = {
   openai: "gpt-4o-mini",
   gemini: "gemini-2.0-flash",
-  anthropic: "claude-haiku-4-5",
+  anthropic: "claude-haiku-4-6",
   // (above is DEFAULT_ANSWER_MODELS.anthropic — kept concise for speed)
   deepseek: "deepseek-chat",
   groq: "llama-3.3-70b-versatile",
@@ -185,22 +185,25 @@ export const ALLOWED_MODELS: Record<APIProvider, string[]> = {
     "gemini-1.5-pro",
     "gemini-1.5-flash",
   ],
+  // Anthropic: sanitizeModelSelection() also accepts any claude-* id
+  // (so the app doesn't reject new models the user's key actually supports).
   anthropic: [
-    // Claude 4.6 (newest — include alias + dated variants)
+    // Claude 4.7
+    "claude-opus-4-7",
+    "claude-sonnet-4-7",
+    "claude-haiku-4-7",
+    // Claude 4.6
     "claude-opus-4-6",
     "claude-sonnet-4-6",
     "claude-haiku-4-6",
-    // Claude 4.5 (latest widely-released)
+    // Claude 4.5
     "claude-opus-4-5",
     "claude-sonnet-4-5",
     "claude-haiku-4-5",
-    "claude-sonnet-4-5-20250929",
-    "claude-haiku-4-5-20250929",
-    "claude-opus-4-5-20250929",
     // Claude 4.1 / 4
-    "claude-opus-4-1-20250805",
-    "claude-opus-4-20250514",
-    "claude-sonnet-4-20250514",
+    "claude-opus-4-1",
+    "claude-opus-4",
+    "claude-sonnet-4",
     // Claude 3.7
     "claude-3-7-sonnet-20250219",
     "claude-3-7-sonnet-latest",
@@ -269,13 +272,13 @@ export const MODEL_CATEGORIES: ModelCategoryDefinition[] = [
         { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", description: "Legacy — use 2.5 for best results" },
       ],
       anthropic: [
-        { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", description: "Recommended — latest Claude 4.x, best balance" },
-        { id: "claude-opus-4-5", name: "Claude Opus 4.5", description: "Most capable — use for hardest problems" },
-        { id: "claude-haiku-4-5", name: "Claude Haiku 4.5", description: "Fast and cheap, still Claude 4.x" },
-        { id: "claude-opus-4-1-20250805", name: "Claude Opus 4.1", description: "Prior Opus release" },
-        { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6 (if available)", description: "Newest — only if your key has early access" },
+        { id: "claude-sonnet-4-6", name: "Claude Sonnet 4.6", description: "Recommended — latest Claude 4.x" },
+        { id: "claude-opus-4-6", name: "Claude Opus 4.6", description: "Most capable — use for hardest problems" },
+        { id: "claude-haiku-4-6", name: "Claude Haiku 4.6", description: "Fast and cheap, still Claude 4.x" },
+        { id: "claude-sonnet-4-7", name: "Claude Sonnet 4.7 (if available)", description: "Newest — only if your key has early access" },
+        { id: "claude-opus-4-7", name: "Claude Opus 4.7 (if available)", description: "Newest Opus — early access" },
+        { id: "claude-sonnet-4-5", name: "Claude Sonnet 4.5", description: "Prior release" },
         { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Fallback for older-access keys" },
-        { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", description: "Fallback — widely available" },
       ],
       deepseek: [
         { id: "deepseek-chat", name: "DeepSeek V3", description: "Strong coding model, very cost-effective" },
@@ -473,6 +476,13 @@ export function sanitizeModelSelection(
 ): string {
   // OpenRouter allows arbitrary provider/model combinations
   if (provider === "openrouter" && model.includes("/")) {
+    return model;
+  }
+
+  // Anthropic releases new model IDs frequently; accept any id that looks
+  // like a Claude model rather than hardcoding a rigid allow-list that
+  // would reject new releases the user's key actually supports.
+  if (provider === "anthropic" && /^claude-[a-z0-9._-]+$/i.test(model)) {
     return model;
   }
 

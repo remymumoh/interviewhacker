@@ -1037,8 +1037,51 @@ export class ProcessingHelper {
         });
       }
 
-      // Create prompt for solution generation
-      const promptText = `
+      // Create prompt for solution generation.
+      // SQL gets a different structure: pure query only (no function wrapper,
+      // no helper code), and complexity sections are about query cost instead
+      // of Big-O.
+      const isSql = language.toLowerCase() === "sql";
+
+      const promptText = isSql
+        ? `
+Solve the following database problem. Return pure SQL only — no application code.
+
+PROBLEM STATEMENT:
+${problemInfo.problem_statement}
+
+CONSTRAINTS:
+${problemInfo.constraints || "No specific constraints provided."}
+
+EXAMPLE INPUT:
+${problemInfo.example_input || "No example input provided."}
+
+EXAMPLE OUTPUT:
+${problemInfo.example_output || "No example output provided."}
+
+Return the response in EXACTLY this format:
+
+1. Code: Just the SQL query (or a minimal set of queries / CTE / DDL if required).
+   - Do NOT wrap it in a function or stored procedure unless the problem explicitly asks for one.
+   - Do NOT include Python/Java/JavaScript or any other language.
+   - Do NOT write pseudocode. No 'def solve():', no 'class Solution', no imports.
+   - Use standard ANSI SQL unless the problem specifies a dialect (MySQL, PostgreSQL, T-SQL, etc.).
+   - Add brief single-line SQL comments (-- ...) above each meaningful clause (CTE, JOIN, WHERE, GROUP BY, window function) explaining what it does.
+
+2. Your Thoughts: Exactly 2-4 DISTINCT bullet points. Each bullet must cover a DIFFERENT aspect — do NOT repeat or rephrase the same idea. Good topics (pick 2-4, one per bullet):
+   (a) the core SQL construct used (JOIN type, window function, CTE, subquery, aggregate),
+   (b) the key insight that simplifies the query,
+   (c) edge cases (NULLs, duplicates, ties, empty groups),
+   (d) indexes or performance notes.
+   One sentence per bullet.
+
+3. Time complexity: Describe the query's cost in database terms — roughly O(N), O(N log N), or O(N·M) for joins — and mention which indexes or scans dominate. 2 sentences.
+
+4. Space complexity: Describe temporary / working set — e.g. intermediate CTE materialization, hash table for aggregation. 2 sentences.
+
+Put the SQL inside a \`\`\`sql code block.
+`
+        : `
 Generate a detailed solution for the following coding problem:
 
 PROBLEM STATEMENT:

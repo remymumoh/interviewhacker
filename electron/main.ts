@@ -494,12 +494,16 @@ function setWindowDimensions(width: number, height: number): void {
     const [currentX, currentY] = state.mainWindow.getPosition()
     const primaryDisplay = screen.getPrimaryDisplay()
     const workArea = primaryDisplay.workAreaSize
-    const maxWidth = Math.floor(workArea.width * 0.5)
+    // Allow up to 85% of screen width so long SQL/code lines fit without wrapping
+    const maxWidth = Math.floor(workArea.width * 0.85)
+    const minWidth = 750
+
+    const targetWidth = Math.max(minWidth, Math.min(width + 32, maxWidth))
 
     state.mainWindow.setBounds({
-      x: Math.min(currentX, workArea.width - maxWidth),
+      x: Math.min(currentX, Math.max(0, workArea.width - targetWidth)),
       y: currentY,
-      width: Math.min(width + 32, maxWidth),
+      width: targetWidth,
       height: Math.ceil(height)
     })
   }

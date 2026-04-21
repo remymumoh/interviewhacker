@@ -103,17 +103,19 @@ const SolutionSection = ({
               showLineNumbers
               language={currentLanguage == "golang" ? "go" : currentLanguage}
               style={codeTheme as any}
-            customStyle={{
-              maxWidth: "100%",
-              margin: 0,
-              padding: "1rem",
-              whiteSpace: "pre-wrap",
-              wordBreak: "break-all",
-              backgroundColor: "rgba(22, 27, 34, 0.5)"
-            }}
-            wrapLongLines={true}
-          >
-            {content as string}
+              customStyle={{
+                maxWidth: "100%",
+                margin: 0,
+                padding: "1rem",
+                // Keep long lines on one line; scroll horizontally instead of
+                // breaking them in weird places (important for SQL queries).
+                whiteSpace: "pre",
+                overflowX: "auto",
+                backgroundColor: "rgba(22, 27, 34, 0.5)",
+              }}
+              wrapLongLines={false}
+            >
+              {content as string}
             </SyntaxHighlighter>
           </Suspense>
         </div>
@@ -543,11 +545,12 @@ const Solutions: React.FC<SolutionsProps> = ({
             </div>
           )}
 
-          {/* Solution content — scrollable when too long */}
+          {/* Solution content — scrollable when too long.
+              minWidth pushes the window wider so long SQL/code lines fit. */}
           <div
             ref={solutionScrollRef}
             className="w-full text-sm text-gray-100 bg-black/60 rounded-md overflow-y-auto custom-scrollbar"
-            style={{ maxHeight: '85vh' }}
+            style={{ maxHeight: '85vh', minWidth: '900px' }}
           >
             <div className="rounded-lg">
               <div className="px-4 py-3 space-y-4 max-w-full">

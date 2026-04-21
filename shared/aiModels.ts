@@ -58,7 +58,7 @@ export const PROVIDER_DISPLAY_NAMES: Record<APIProvider, string> = {
 export const PROVIDER_DESCRIPTIONS: Record<APIProvider, string> = {
   openai: "GPT-4o, o3, o4-mini",
   gemini: "Gemini 2.5 & 2.0",
-  anthropic: "Claude 4 & 3.7",
+  anthropic: "Claude 3.7 & 3.5",
   deepseek: "DeepSeek V3 & R1",
   groq: "Ultra-fast inference",
   openrouter: "Multi-provider gateway",
@@ -115,9 +115,9 @@ export const DEFAULT_MODELS: Record<
     speechRecognitionModel: "gemini-2.0-flash",
   },
   anthropic: {
-    extractionModel: "claude-sonnet-4-20250514",
-    solutionModel: "claude-sonnet-4-20250514",
-    debuggingModel: "claude-sonnet-4-20250514",
+    extractionModel: "claude-3-7-sonnet-20250219",
+    solutionModel: "claude-3-7-sonnet-20250219",
+    debuggingModel: "claude-3-7-sonnet-20250219",
     answerModel: "claude-3-5-haiku-20241022",
   },
   deepseek: {
@@ -133,9 +133,9 @@ export const DEFAULT_MODELS: Record<
     answerModel: "llama-3.3-70b-versatile",
   },
   openrouter: {
-    extractionModel: "anthropic/claude-sonnet-4-20250514",
-    solutionModel: "anthropic/claude-sonnet-4-20250514",
-    debuggingModel: "anthropic/claude-sonnet-4-20250514",
+    extractionModel: "anthropic/claude-3-7-sonnet-20250219",
+    solutionModel: "anthropic/claude-3-7-sonnet-20250219",
+    debuggingModel: "anthropic/claude-3-7-sonnet-20250219",
     answerModel: "deepseek/deepseek-chat-v3-0324:free",
   },
 };
@@ -147,6 +147,7 @@ export const DEFAULT_ANSWER_MODELS: Record<APIProvider, string> = {
   openai: "gpt-4o-mini",
   gemini: "gemini-2.0-flash",
   anthropic: "claude-3-5-haiku-20241022",
+  // (above is DEFAULT_ANSWER_MODELS.anthropic — kept concise for speed)
   deepseek: "deepseek-chat",
   groq: "llama-3.3-70b-versatile",
   openrouter: "deepseek/deepseek-chat-v3-0324:free",
@@ -182,16 +183,17 @@ export const ALLOWED_MODELS: Record<APIProvider, string[]> = {
     "gemini-1.5-flash",
   ],
   anthropic: [
-    // Claude 4
-    "claude-opus-4-20250514",
-    "claude-sonnet-4-20250514",
-    // Claude 3.7
+    // Claude 3.7 (latest generally available as of this release)
     "claude-3-7-sonnet-20250219",
+    "claude-3-7-sonnet-latest",
     // Claude 3.5
     "claude-3-5-sonnet-20241022",
+    "claude-3-5-sonnet-latest",
     "claude-3-5-haiku-20241022",
+    "claude-3-5-haiku-latest",
     // Claude 3 legacy
     "claude-3-opus-20240229",
+    "claude-3-opus-latest",
   ],
   deepseek: [
     "deepseek-chat",        // DeepSeek V3
@@ -207,7 +209,7 @@ export const ALLOWED_MODELS: Record<APIProvider, string[]> = {
   ],
   openrouter: [
     // OpenRouter uses provider/model format - allow anything since it routes to many providers
-    "anthropic/claude-sonnet-4-20250514",
+    "anthropic/claude-3-7-sonnet-20250219",
     "anthropic/claude-3-7-sonnet-20250219",
     "anthropic/claude-3-5-sonnet-20241022",
     "openai/gpt-4o",
@@ -247,9 +249,7 @@ export const MODEL_CATEGORIES: ModelCategoryDefinition[] = [
         { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", description: "Legacy — use 2.5 for best results" },
       ],
       anthropic: [
-        { id: "claude-opus-4-20250514", name: "Claude Opus 4", description: "Most capable, best for complex problems" },
-        { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", description: "Excellent balance of speed and intelligence" },
-        { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Strong performance, extended thinking" },
+        { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Best available — strong performance, extended thinking" },
         { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", description: "Fast and reliable" },
         { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku", description: "Fastest, most cost-effective" },
         { id: "claude-3-opus-20240229", name: "Claude 3 Opus", description: "Legacy — use Claude 4 for best results" },
@@ -265,7 +265,7 @@ export const MODEL_CATEGORIES: ModelCategoryDefinition[] = [
         { id: "mixtral-8x7b-32768", name: "Mixtral 8x7B", description: "Good balance of speed and quality" },
       ],
       openrouter: [
-        { id: "anthropic/claude-sonnet-4-20250514", name: "Claude Sonnet 4", description: "Best extraction via OpenRouter" },
+        { id: "anthropic/claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Best extraction via OpenRouter" },
         { id: "openai/gpt-4o", name: "GPT-4o", description: "OpenAI's best vision model" },
         { id: "google/gemini-2.5-pro-preview-05-06", name: "Gemini 2.5 Pro", description: "Google's best model" },
         { id: "deepseek/deepseek-chat-v3-0324:free", name: "DeepSeek V3 (Free)", description: "Free tier, strong coding" },
@@ -291,9 +291,7 @@ export const MODEL_CATEGORIES: ModelCategoryDefinition[] = [
         { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", description: "Legacy — use 2.5 for best results" },
       ],
       anthropic: [
-        { id: "claude-opus-4-20250514", name: "Claude Opus 4", description: "Best for hardest coding challenges" },
-        { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", description: "Excellent coder, fast turnaround" },
-        { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Strong coding with extended thinking" },
+        { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Best coder — extended thinking enabled" },
         { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", description: "Reliable coding performance" },
         { id: "claude-3-opus-20240229", name: "Claude 3 Opus", description: "Legacy — use Claude 4 for best results" },
       ],
@@ -308,7 +306,7 @@ export const MODEL_CATEGORIES: ModelCategoryDefinition[] = [
         { id: "mixtral-8x7b-32768", name: "Mixtral 8x7B", description: "Good balance, 32K context" },
       ],
       openrouter: [
-        { id: "anthropic/claude-sonnet-4-20250514", name: "Claude Sonnet 4", description: "Top-tier coding via OpenRouter" },
+        { id: "anthropic/claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Top-tier coding via OpenRouter" },
         { id: "openai/o3-mini", name: "o3-mini", description: "OpenAI reasoning, great for DSA" },
         { id: "deepseek/deepseek-chat-v3-0324:free", name: "DeepSeek V3 (Free)", description: "Free tier, excellent coder" },
         { id: "deepseek/deepseek-r1:free", name: "DeepSeek R1 (Free)", description: "Free reasoning model" },
@@ -335,9 +333,7 @@ export const MODEL_CATEGORIES: ModelCategoryDefinition[] = [
         { id: "gemini-1.5-pro", name: "Gemini 1.5 Pro", description: "Legacy — use 2.5 for best results" },
       ],
       anthropic: [
-        { id: "claude-opus-4-20250514", name: "Claude Opus 4", description: "Best at finding complex bugs" },
-        { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", description: "Great debugging, fast turnaround" },
-        { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Strong debugging with extended thinking" },
+        { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Best for tricky bugs — extended thinking" },
         { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", description: "Reliable debugging" },
         { id: "claude-3-opus-20240229", name: "Claude 3 Opus", description: "Legacy — use Claude 4 for best results" },
       ],
@@ -351,7 +347,7 @@ export const MODEL_CATEGORIES: ModelCategoryDefinition[] = [
         { id: "llama-3.1-70b-versatile", name: "Llama 3.1 70B", description: "Reliable debugging" },
       ],
       openrouter: [
-        { id: "anthropic/claude-sonnet-4-20250514", name: "Claude Sonnet 4", description: "Best debugging via OpenRouter" },
+        { id: "anthropic/claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Best debugging via OpenRouter" },
         { id: "openai/o3-mini", name: "o3-mini", description: "Reasoning model for bug hunting" },
         { id: "deepseek/deepseek-r1:free", name: "DeepSeek R1 (Free)", description: "Free reasoning for debugging" },
         { id: "mistralai/mistral-large-latest", name: "Mistral Large", description: "Strong code understanding" },
@@ -376,8 +372,7 @@ export const MODEL_CATEGORIES: ModelCategoryDefinition[] = [
       ],
       anthropic: [
         { id: "claude-3-5-haiku-20241022", name: "Claude 3.5 Haiku", description: "Fastest, cheapest — great for suggestions" },
-        { id: "claude-sonnet-4-20250514", name: "Claude Sonnet 4", description: "Better quality for complex questions" },
-        { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Strong all-round performance" },
+        { id: "claude-3-7-sonnet-20250219", name: "Claude 3.7 Sonnet", description: "Better quality for complex questions" },
         { id: "claude-3-5-sonnet-20241022", name: "Claude 3.5 Sonnet", description: "Balanced performance" },
       ],
       deepseek: [

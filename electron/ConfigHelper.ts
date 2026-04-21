@@ -94,6 +94,27 @@ export class ConfigHelper extends EventEmitter {
         if (!validProviders.includes(config.apiProvider)) {
           config.apiProvider = DEFAULT_PROVIDER; // Default to shared provider if invalid
         }
+
+        // Drop any stored apiKey that is obviously malformed (HTML, whitespace, etc.).
+        // This recovers from a previously corrupted config without the user having to
+        // manually edit the file.
+        if (typeof config.apiKey === "string") {
+          const trimmed = config.apiKey.trim();
+          const looksBogus =
+            trimmed.length > 0 && (
+              /[\s<>]/.test(trimmed) ||
+              trimmed.length > 400 ||
+              trimmed.length < 10
+            );
+          if (looksBogus) {
+            console.warn("Dropping malformed stored apiKey — please re-enter in Settings.");
+            config.apiKey = "";
+          } else {
+            config.apiKey = trimmed;
+          }
+        } else if (config.apiKey !== undefined) {
+          config.apiKey = "";
+        }
         
         // Sanitize model selections to ensure only allowed models are used
         if (config.extractionModel) {
@@ -184,8 +205,36 @@ export class ConfigHelper extends EventEmitter {
   public updateConfig(updates: Partial<Config>): Config {
     try {
       const currentConfig = this.loadConfig();
+
+      // Sanitize API key before anything else. Reject obviously invalid
+      // values (HTML fragments, multi-line blobs, whitespace-only) rather
+      // than storing them and failing later inside the SDK.
+      if (updates.apiKey !== undefined) {
+        if (typeof updates.apiKey !== "string") {
+          console.warn("Rejecting non-string apiKey in updateConfig");
+          delete updates.apiKey;
+        } else {
+          const trimmed = updates.apiKey.trim();
+          const looksBogus =
+            trimmed.length > 0 && (
+              /[\s<>]/.test(trimmed) ||
+              trimmed.length > 400 ||
+              trimmed.length < 10
+            );
+          if (looksBogus) {
+            console.warn(
+              `Rejecting malformed apiKey (length=${trimmed.length}, first chars="${trimmed.substring(0, 20)}")`
+            );
+            delete updates.apiKey;
+          } else {
+            // Always store the trimmed, whitespace-free version
+            updates.apiKey = trimmed;
+          }
+        }
+      }
+
       let provider: APIProvider = updates.apiProvider || currentConfig.apiProvider;
-      
+
       // Auto-detect provider based on API key format if a new key is provided
       // Only auto-detect if provider was NOT explicitly set by the user
       if (updates.apiKey && !updates.apiProvider) {

@@ -89,13 +89,21 @@ export class AnswerAssistant implements IAnswerAssistant {
       return;
     }
 
+    const trimmed = config.apiKey.trim();
+    // Defend against a corrupted key (HTML/whitespace). ConfigHelper already
+    // sanitizes on save, but this is a belt-and-braces check.
+    if (/[\s<>]/.test(trimmed) || trimmed.length < 10 || trimmed.length > 400) {
+      console.error("AnswerAssistant: stored apiKey looks malformed — skipping init.");
+      return;
+    }
+
     if (PROVIDER_IS_OPENAI_COMPATIBLE[config.apiProvider]) {
       const baseURL = PROVIDER_BASE_URLS[config.apiProvider];
-      this.openai = new OpenAI({ apiKey: config.apiKey, baseURL });
+      this.openai = new OpenAI({ apiKey: trimmed, baseURL });
     } else if (config.apiProvider === "gemini") {
-      this.geminiApiKey = config.apiKey;
+      this.geminiApiKey = trimmed;
     } else if (config.apiProvider === "anthropic") {
-      this.anthropic = new Anthropic({ apiKey: config.apiKey });
+      this.anthropic = new Anthropic({ apiKey: trimmed });
     }
   }
 

@@ -106,6 +106,21 @@ export class ProcessingHelper {
   }
 
   /**
+   * Validate that an API key looks reasonable before handing it to an SDK.
+   * Catches cases where the key got clobbered with HTML, whitespace, or
+   * something obviously wrong — HTTP header validation would crash the
+   * SDK later with a cryptic error.
+   */
+  private isValidApiKeyValue(key: string | undefined | null): boolean {
+    if (!key || typeof key !== "string") return false;
+    const trimmed = key.trim();
+    if (trimmed.length < 10 || trimmed.length > 400) return false;
+    // Real API keys never contain whitespace, HTML tags, or newlines
+    if (/[\s<>]/.test(trimmed)) return false;
+    return true;
+  }
+
+  /**
    * Extract a JSON object from an AI response that may contain surrounding text.
    * Handles: raw JSON, markdown code blocks, JSON embedded in natural language.
    */
@@ -191,22 +206,33 @@ export class ProcessingHelper {
         return;
       }
 
+      if (!this.isValidApiKeyValue(config.apiKey)) {
+        console.error(
+          `Stored ${config.apiProvider} API key is malformed (contains HTML/whitespace or wrong length). ` +
+          `Length: ${config.apiKey.length}, first 20 chars: "${config.apiKey.substring(0, 20)}". ` +
+          `Please re-enter your API key in Settings.`
+        );
+        return;
+      }
+
+      const cleanKey = config.apiKey.trim();
+
       if (PROVIDER_IS_OPENAI_COMPATIBLE[config.apiProvider]) {
         // OpenAI-compatible providers: openai, deepseek, groq, openrouter
         const baseURL = PROVIDER_BASE_URLS[config.apiProvider];
         this.openaiClient = new OpenAI({
-          apiKey: config.apiKey,
+          apiKey: cleanKey,
           baseURL,
           timeout: 60000,
           maxRetries: 2,
         });
         console.log(`${config.apiProvider} client initialized (OpenAI-compatible, baseURL: ${baseURL})`);
       } else if (config.apiProvider === "gemini") {
-        this.geminiApiKey = config.apiKey;
+        this.geminiApiKey = cleanKey;
         console.log("Gemini API key set successfully");
       } else if (config.apiProvider === "anthropic") {
         this.anthropicClient = new Anthropic({
-          apiKey: config.apiKey,
+          apiKey: cleanKey,
           timeout: 60000,
           maxRetries: 2,
         });

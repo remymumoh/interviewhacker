@@ -528,9 +528,12 @@ const Solutions: React.FC<SolutionsProps> = ({
             </div>
           )}
 
-          {/* Solution content */}
-          <div className="w-full text-sm text-gray-100 bg-black/60 rounded-md">
-            <div className="rounded-lg overflow-hidden">
+          {/* Solution content — scrollable when too long */}
+          <div
+            className="w-full text-sm text-gray-100 bg-black/60 rounded-md overflow-y-auto custom-scrollbar"
+            style={{ maxHeight: '70vh' }}
+          >
+            <div className="rounded-lg">
               <div className="px-4 py-3 space-y-4 max-w-full">
 
                 {!solutionData && (

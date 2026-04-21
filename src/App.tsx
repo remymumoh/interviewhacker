@@ -220,10 +220,9 @@ function App() {
     }
   }, [updateCredits, updateLanguage, markInitialized, showToast])
 
-  // API Key dialog management
+  // API Key dialog management — render settings inline over the current view
   const handleOpenSettings = useCallback(() => {
     console.log('Opening settings dialog');
-    window.electronAPI.settingsFocusMode(true);
     setIsSettingsOpen(true);
   }, []);
 
@@ -306,6 +305,17 @@ function App() {
                     setLanguage={updateLanguage}
                   />
                 </Suspense>
+              ) : isSettingsOpen ? (
+                <div className="min-h-screen bg-black p-4 flex justify-center">
+                  <Suspense fallback={null}>
+                    <SettingsDialog
+                      open={true}
+                      onOpenChange={(o) => {
+                        if (!o) setIsSettingsOpen(false);
+                      }}
+                    />
+                  </Suspense>
+                </div>
               ) : (
                 <WelcomeScreen onOpenSettings={handleOpenSettings} />
               )

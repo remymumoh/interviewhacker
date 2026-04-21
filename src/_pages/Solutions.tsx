@@ -16,7 +16,6 @@ import SolutionCommands from "../components/Solutions/SolutionCommands"
 import Debug from "./Debug"
 import { useToast } from "../contexts/toast"
 import { COMMAND_KEY } from "../utils/platform"
-import { ConversationSection } from "../components/Conversation/ConversationSection"
 
 export const ContentSection = ({
   title,
@@ -528,13 +527,6 @@ const Solutions: React.FC<SolutionsProps> = ({
             currentLanguage={currentLanguage}
             setLanguage={setLanguage}
           />
-
-          {/* Conversation section */}
-          <div className="w-full text-sm text-gray-100 bg-black/60 rounded-md overflow-hidden" style={{ maxHeight: '250px' }}>
-            <div className="p-3" style={{ height: '250px', display: 'flex', flexDirection: 'column' }}>
-              <ConversationSection />
-            </div>
-          </div>
 
           {/* Screenshots */}
           {solutionData && extraScreenshots.length > 0 && (

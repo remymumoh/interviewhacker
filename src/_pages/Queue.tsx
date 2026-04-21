@@ -2,7 +2,6 @@ import React, { useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
 import QueueCommands from "../components/Queue/QueueCommands"
-import { ConversationSection } from "../components/Conversation/ConversationSection"
 
 import { useToast } from "../contexts/toast"
 import { Screenshot } from "../types/screenshots"
@@ -132,22 +131,16 @@ const Queue: React.FC<QueueProps> = ({
             credits={credits}
           />
 
-          {/* Unified section: Conversation + Screenshots */}
-          <div className="bg-black/60 rounded-md p-4" style={{ display: 'flex', flexDirection: 'column' }}>
-            <div style={{ minHeight: '200px', flex: 1, display: 'flex', flexDirection: 'column' }}>
-              <ConversationSection />
+          {/* Screenshots section */}
+          {screenshots.length > 0 && (
+            <div className="bg-black/60 rounded-md p-4">
+              <ScreenshotQueue
+                isLoading={false}
+                screenshots={screenshots}
+                onDeleteScreenshot={handleDeleteScreenshot}
+              />
             </div>
-
-            {screenshots.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-white/10">
-                <ScreenshotQueue
-                  isLoading={false}
-                  screenshots={screenshots}
-                  onDeleteScreenshot={handleDeleteScreenshot}
-                />
-              </div>
-            )}
-          </div>
+          )}
 
           {/* Settings button at the bottom */}
           <div className="flex justify-end">

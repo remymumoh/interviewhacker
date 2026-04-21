@@ -2,6 +2,7 @@ import React, { useEffect, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import ScreenshotQueue from "../components/Queue/ScreenshotQueue"
 import QueueCommands from "../components/Queue/QueueCommands"
+import { ConversationSection } from "../components/Conversation/ConversationSection"
 
 import { useToast } from "../contexts/toast"
 import { Screenshot } from "../types/screenshots"
@@ -130,6 +131,11 @@ const Queue: React.FC<QueueProps> = ({
             screenshotCount={screenshots.length}
             credits={credits}
           />
+
+          {/* Recording controls only — no conversation history */}
+          <div className="bg-black/60 rounded-md p-3">
+            <ConversationSection controlsOnly={true} />
+          </div>
 
           {/* Screenshots section */}
           {screenshots.length > 0 && (

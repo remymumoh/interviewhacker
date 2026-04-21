@@ -50,7 +50,12 @@ const ContentSection = ({
   </div>
 );
 
-export const ConversationSection: React.FC = () => {
+interface ConversationSectionProps {
+  // When true, only show the recording controls (no conversation history)
+  controlsOnly?: boolean;
+}
+
+export const ConversationSection: React.FC<ConversationSectionProps> = ({ controlsOnly = false }) => {
   const queryClient = useQueryClient();
   const [messages, setMessages] = useState<ConversationMessage[]>([]);
   const [isRecording, setIsRecording] = useState(false);
@@ -358,7 +363,8 @@ export const ConversationSection: React.FC = () => {
         onClearConversation={handleClearConversation}
       />
 
-      {/* Scrollable Conversation Area - Takes remaining space above AI suggestions */}
+      {/* Scrollable Conversation Area - hidden in controls-only mode */}
+      {!controlsOnly && (
       <div
         ref={scrollContainerRef}
         className="overflow-y-auto flex-1 min-h-0 mb-3 pr-2 mt-2"
@@ -409,6 +415,7 @@ export const ConversationSection: React.FC = () => {
         )}
         <div ref={messagesEndRef} />
       </div>
+      )}
 
     </div>
   );
